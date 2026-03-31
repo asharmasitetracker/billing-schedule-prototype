@@ -127,6 +127,9 @@
     .bss-panel-intro {
       font-size: .82rem; color: #706e6b; margin: 0 0 .75rem; padding: 0 .25rem;
     }
+    .bs-quick-actions-card .card-body { padding: 1rem 1rem 1.1rem; }
+    .bs-quick-actions-row { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
+    .bs-quick-actions-row .slds-button:disabled { opacity: .45; cursor: not-allowed; }
 
     /* ── Toast ──────────────────────────────────── */
     .toast-wrap {
@@ -667,6 +670,11 @@
           </table>
         </div>
       </div>
+
+      <div class="card bs-quick-actions-card" id="bsQuickActionsCard">
+        <div class="card-head"><h2>Next steps</h2><span style="font-size:.72rem;color:#706e6b">Jump to the right tab</span></div>
+        <div class="card-body" id="bsQuickActionsBody"></div>
+      </div>
     </div>
 
     <!-- Panel: Monthly projection (projection table) -->
@@ -1061,6 +1069,58 @@ function showBssPanel(tab) {
   });
 }
 
+function isBsApproved() {
+  const b = document.getElementById('bsBadge');
+  return b && b.textContent.trim().toLowerCase() === 'approved';
+}
+
+/** Billing schedule tab — CTAs that switch to Projection / PA / Change order tabs. */
+function renderBsQuickActions() {
+  const wrap = document.getElementById('bsQuickActionsBody');
+  if (!wrap) return;
+
+  const approved = isBsApproved();
+  const hasLines = currentLines.length > 0;
+
+  if (!approved) {
+    wrap.innerHTML = `
+      <p class="bss-panel-intro" style="margin:0 0 .75rem">After you <strong>submit and approve</strong> this billing schedule, you can run a monthly forecast, create payment applications, and open change orders.</p>
+      <div class="bs-quick-actions-row">
+        <button type="button" class="slds-button slds-button_neutral" disabled>Generate monthly forecast</button>
+        <button type="button" class="slds-button slds-button_neutral" disabled>Create payment application</button>
+        <button type="button" class="slds-button slds-button_neutral" disabled>Create change order</button>
+      </div>`;
+    return;
+  }
+
+  const forecastLabel = projSummary.generated ? 'View monthly forecast' : 'Generate monthly forecast';
+  const forecastDisabled = !hasLines;
+  const lineDisabled = !hasLines;
+
+  wrap.innerHTML = `
+    <p class="bss-panel-intro" style="margin:0 0 .75rem">Schedule is <strong>approved</strong>. Use the buttons below to open the right tab and continue.</p>
+    <div class="bs-quick-actions-row">
+      <button type="button" class="slds-button slds-button_brand"${forecastDisabled ? ' disabled title="Add billing schedule lines first"' : ` onclick="qaGoForecast()"`}>${forecastLabel}</button>
+      <button type="button" class="slds-button slds-button_brand"${lineDisabled ? ' disabled title="Add billing schedule lines first"' : ` onclick="qaGoPayApp()"`}>Create payment application</button>
+      <button type="button" class="slds-button slds-button_brand" style="background:#ba5700;border-color:#ba5700"${lineDisabled ? ' disabled title="Add billing schedule lines first"' : ` onclick="qaGoChangeOrder()"`}>Create change order</button>
+    </div>`;
+}
+
+function qaGoForecast() {
+  navTabClick('proj');
+  toast(projSummary.generated ? 'Monthly projection tab — adjust or regenerate if needed.' : 'Monthly projection tab — click Generate projection to build the forecast.');
+}
+
+function qaGoPayApp() {
+  navTabClick('pa');
+  toast('Payment applications tab — choose New Payment Application to pick a period.');
+}
+
+function qaGoChangeOrder() {
+  navTabClick('co');
+  toast('Change orders tab — use New Change Order to revise line items.');
+}
+
 function navTabClick(tab) {
   const onS1 = document.getElementById('s1').classList.contains('active');
   const onOther = document.getElementById('s2').classList.contains('active') ||
@@ -1418,6 +1478,7 @@ function renderDetail(src, lines) {
       </td></tr>`;
     renderPAList();
     renderCOList();
+    renderBsQuickActions();
     return;
   }
 
@@ -1444,6 +1505,7 @@ function refreshLinesTable() {
       </td>
       <td data-label="Status"><span class="badge badge-draft">Draft</span></td>
     </tr>`).join('');
+  renderBsQuickActions();
 }
 
 // ───── Milestone picker state ───────────────────────────────
@@ -1649,6 +1711,7 @@ function generateProjection() {
   setActiveNavTab('proj');
   showBssPanel('proj');
   renderBsRibbon();
+  renderBsQuickActions();
   toast('Monthly projection generated');
 }
 
@@ -2107,6 +2170,7 @@ function submitBS() {
     b.className = 'badge badge-approved';
   });
   renderPAList();
+  renderBsQuickActions();
 }
 
 // ───── Change Order state ───────────────────────────────────
@@ -2326,6 +2390,7 @@ function submitCO() {
     renderCOList();
     renderPAList();
     renderBsRibbon();
+    renderBsQuickActions();
   }, 2000);
 }
 
