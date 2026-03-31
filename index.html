@@ -660,14 +660,6 @@
     <div class="bss-panel active" id="panel-bs" data-panel="bs">
       <p class="bss-panel-intro">Schedule header, metadata, and SOV line items for <strong>BS-10042</strong>.</p>
 
-      <div class="card bs-quick-actions-card" id="bsQuickActionsCardTop" style="margin-bottom:1rem;border-color:#0176d3;border-width:1px;box-shadow:0 2px 8px rgba(1,118,211,.12)">
-        <div class="card-head" style="background:#f0f7ff;border-bottom-color:#cfe9fe">
-          <h2>Billing actions</h2>
-          <span style="font-size:.72rem;color:#014486">Forecast, pay apps, and change orders</span>
-        </div>
-        <div class="card-body" id="bsQuickActionsBodyTop"></div>
-      </div>
-
       <div class="card">
         <div class="card-head"><h2>Details</h2></div>
         <div class="card-body">
@@ -695,7 +687,7 @@
       </div>
 
       <div class="card bs-quick-actions-card" id="bsQuickActionsCard">
-        <div class="card-head"><h2>Next steps</h2><span style="font-size:.72rem;color:#706e6b">Same shortcuts as above</span></div>
+        <div class="card-head"><h2>Next steps</h2><span style="font-size:.72rem;color:#706e6b">Jump to the right tab</span></div>
         <div class="card-body" id="bsQuickActionsBody"></div>
       </div>
     </div>
@@ -1157,7 +1149,6 @@ function renderBsHeaderActions() {
 /** Billing schedule tab + header — prominent CTAs (always visible, never disabled). */
 function renderBsQuickActions() {
   const wrap = document.getElementById('bsQuickActionsBody');
-  const wrapTop = document.getElementById('bsQuickActionsBodyTop');
   const approved = isBsApproved();
   const hasLines = currentLines.length > 0;
   const forecastLabel = projSummary.generated ? 'View monthly forecast' : 'Generate monthly forecast';
@@ -1175,9 +1166,7 @@ function renderBsQuickActions() {
       <button type="button" class="slds-button slds-button_brand" style="font-size:.85rem;padding:.5rem 1rem;background:#ba5700;border-color:#ba5700" onclick="hdrActionCo()">New change order</button>
     </div>`;
 
-  const html = intro + row;
-  if (wrap) wrap.innerHTML = html;
-  if (wrapTop) wrapTop.innerHTML = html;
+  if (wrap) wrap.innerHTML = intro + row;
 
   renderBsHeaderActions();
 }
