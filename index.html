@@ -401,6 +401,34 @@
     .inv-trail .t-step.current { background: #fef0cd; border-color: #ba5700; color: #8c4b02; }
     .inv-trail .t-arrow { color: #c9c9c9; }
     .inv-line-table td, .inv-line-table th { font-size: .8rem; }
+
+    /* ── Change Order ──────────────────────────── */
+    .co-delta { font-size: .78rem; font-weight: 600; }
+    .co-delta.positive { color: #2e844a; }
+    .co-delta.negative { color: #ba0517; }
+    .co-delta.zero { color: #706e6b; }
+    .co-input {
+      width: 100px; padding: .25rem .35rem; border: 1px solid #c9c9c9;
+      border-radius: 4px; font-size: .8rem; font-family: inherit;
+      text-align: right; font-variant-numeric: tabular-nums;
+    }
+    .co-input:focus { border-color: #0176d3; box-shadow: 0 0 0 1px #0176d3; outline: none; }
+    .co-reason {
+      width: 100%; padding: .45rem .6rem; border: 1px solid #c9c9c9;
+      border-radius: 4px; font-size: .85rem; font-family: inherit;
+      resize: vertical; min-height: 60px;
+    }
+    .co-reason:focus { border-color: #0176d3; box-shadow: 0 0 0 1px #0176d3; outline: none; }
+    .co-new-line-row td { background: #f0fff4; }
+    .co-removed td { text-decoration: line-through; opacity: .5; }
+    .co-summary-strip {
+      display: flex; gap: 1.5rem; flex-wrap: wrap;
+      padding: .6rem 1rem; background: #fafaf9;
+      border-bottom: 1px solid #e5e5e5; font-size: .8rem;
+    }
+    .co-summary-strip .item { display: flex; flex-direction: column; }
+    .co-summary-strip .label { font-size: .68rem; color: #706e6b; font-weight: 700; text-transform: uppercase; }
+    .co-summary-strip .val { font-size: .95rem; font-weight: 700; }
   </style>
 </head>
 <body>
@@ -564,6 +592,21 @@
       </div>
     </div>
 
+    <!-- Change Orders card -->
+    <div class="card" id="coListCard">
+      <div class="card-head">
+        <h2>Change Orders</h2>
+        <button class="slds-button slds-button_brand" id="btnNewCO" onclick="openNewCO()" style="display:none;font-size:.75rem;padding:.35rem .75rem;background:#ba5700;border-color:#ba5700">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style="vertical-align:-1px;margin-right:3px"><path d="M6 1v10M1 6h10" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/></svg>New Change Order
+        </button>
+      </div>
+      <div id="coListBody">
+        <div style="text-align:center;padding:1.25rem 1rem;color:#706e6b;font-size:.84rem">
+          No change orders yet. Change orders let you modify an approved billing schedule.
+        </div>
+      </div>
+    </div>
+
     <!-- Monthly Projection card (hidden until generated) -->
     <div class="card" id="projCard">
       <div class="card-head">
@@ -685,6 +728,71 @@
           <tbody id="invLinesBody"></tbody>
           <tfoot id="invLinesFoot"></tfoot>
         </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── SCREEN 4 — CHANGE ORDER DETAIL ─────────────────── -->
+  <section class="screen" id="s4">
+    <div class="slds-page-header" style="margin-bottom:1rem">
+      <div class="slds-page-header__row">
+        <div class="slds-has-flexi-truncate">
+          <div class="slds-page-header__name">
+            <div class="slds-page-header__name-title">
+              <h1>
+                <span style="font-size:.72rem;color:#706e6b;display:block">Change Order</span>
+                <span class="slds-page-header__title slds-truncate" id="coTitle">CO-101</span>
+              </h1>
+            </div>
+          </div>
+        </div>
+        <div class="slds-no-flex slds-grid slds-align-top slds-grid_vertical-align-center" style="gap:.5rem">
+          <span class="badge badge-draft" id="coBadge">Draft</span>
+          <button class="slds-button slds-button_neutral" onclick="backFromCO()">Back to Schedule</button>
+          <button class="slds-button slds-button_brand" id="btnSubmitCO" onclick="submitCO()" style="background:#ba5700;border-color:#ba5700">Submit for Approval</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- CO details card -->
+    <div class="card">
+      <div class="card-head"><h2>Change order details</h2></div>
+      <div class="card-body">
+        <div class="pa-summary-grid" id="coMeta"></div>
+        <div style="margin-top:.75rem">
+          <label style="font-size:.75rem;font-weight:600;color:#3e3e3c;display:block;margin-bottom:4px">Reason for change</label>
+          <div id="coReason"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CO summary + line changes -->
+    <div class="card" style="overflow:hidden">
+      <div class="co-summary-strip" id="coSummary"></div>
+      <div class="card-head">
+        <h2>Line item changes</h2>
+        <span style="font-size:.72rem;color:#706e6b" id="coHint">Modify line amounts or add new lines, then submit for approval.</span>
+      </div>
+      <div style="overflow-x:auto">
+        <table class="slds-table slds-table_bordered" style="min-width:800px">
+          <thead>
+            <tr class="slds-line-height_reset">
+              <th class="slds-text-title_caps" scope="col" style="width:42px">#</th>
+              <th class="slds-text-title_caps" scope="col">Description</th>
+              <th class="slds-text-title_caps num" scope="col" style="width:115px">Original amt</th>
+              <th class="slds-text-title_caps num" scope="col" style="width:115px">New amount</th>
+              <th class="slds-text-title_caps num" scope="col" style="width:110px">Change</th>
+              <th class="slds-text-title_caps" scope="col" style="width:80px">Action</th>
+            </tr>
+          </thead>
+          <tbody id="coLinesBody"></tbody>
+          <tfoot id="coLinesFoot"></tfoot>
+        </table>
+      </div>
+      <div style="padding:.5rem 1rem;border-top:1px solid #e5e5e5" id="coAddLineWrap">
+        <button class="slds-button slds-button_neutral" style="font-size:.75rem" onclick="addCOLine()">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style="vertical-align:-1px;margin-right:3px"><path d="M6 1v10M1 6h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>Add Line
+        </button>
       </div>
     </div>
   </section>
@@ -1006,12 +1114,14 @@ function renderDetail(src, lines) {
 
   payApps = [];
   invoices = [];
+  changeOrders = [];
   document.getElementById('projCard').classList.remove('visible');
 
   document.getElementById('bsBadge').textContent = 'Draft';
   document.getElementById('bsBadge').className = 'badge badge-draft';
   document.getElementById('btnSubmit').style.display = '';
   document.getElementById('btnNewPA').style.display = 'none';
+  document.getElementById('btnNewCO').style.display = 'none';
 
   document.getElementById('detailMeta').innerHTML = isManual
     ? `<div><dt>Schedule</dt><dd>BS-10042</dd></div>
@@ -1047,6 +1157,7 @@ function renderDetail(src, lines) {
 
   refreshLinesTable();
   renderPAList();
+  renderCOList();
 }
 
 function refreshLinesTable() {
@@ -1470,6 +1581,7 @@ function backToBS() {
   document.getElementById('s1').classList.add('active');
   renderPAList();
   renderInvoiceList();
+  renderCOList();
 }
 
 function renderPAList() {
@@ -1704,11 +1816,335 @@ function submitBS() {
   document.getElementById('bsBadge').className = 'badge badge-approved';
   document.getElementById('btnSubmit').style.display = 'none';
   document.getElementById('btnNewPA').style.display = '';
+  document.getElementById('btnNewCO').style.display = '';
   document.querySelectorAll('#linesBody .badge-draft').forEach(b => {
     b.textContent = 'Approved';
     b.className = 'badge badge-approved';
   });
   renderPAList();
+}
+
+// ───── Change Order state ───────────────────────────────────
+let changeOrders = [];
+let currentCO = null;
+let coCounter = 100;
+
+function openNewCO() {
+  if (currentLines.length === 0) { toast('Create billing lines first'); return; }
+  coCounter++;
+  const co = {
+    id: 'CO-' + coCounter,
+    status: 'draft',
+    reason: '',
+    createdDate: 'Mar 31, 2026',
+    lines: currentLines.map((line, i) => ({
+      origIdx: i,
+      desc: line.desc,
+      originalAmt: line.amt,
+      newAmt: line.amt,
+      bill: line.bill,
+      isNew: false,
+      isRemoved: false,
+    })),
+  };
+  changeOrders.push(co);
+  currentCO = co;
+  showCODetail();
+}
+
+function showCODetail() {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('s4').classList.add('active');
+
+  const co = currentCO;
+  document.getElementById('coTitle').textContent = co.id;
+
+  const isDraft = co.status === 'draft';
+  const isApproved = co.status === 'approved';
+  const statusLabel = co.status.charAt(0).toUpperCase() + co.status.slice(1);
+  const badgeCls = isDraft ? 'badge-draft' : co.status === 'submitted' ? 'badge-submitted' : 'badge-approved';
+
+  document.getElementById('coBadge').textContent = statusLabel;
+  document.getElementById('coBadge').className = 'badge ' + badgeCls;
+  document.getElementById('btnSubmitCO').style.display = isDraft ? '' : 'none';
+  document.getElementById('coAddLineWrap').style.display = isDraft ? '' : 'none';
+  document.getElementById('coHint').textContent = isDraft
+    ? 'Modify line amounts or add new lines, then submit for approval.'
+    : isApproved
+      ? 'Approved — changes have been applied to the billing schedule.'
+      : 'Submitted — pending approval.';
+
+  document.getElementById('coMeta').innerHTML = `
+    <div><dt>Change order</dt><dd>${co.id}</dd></div>
+    <div><dt>Billing schedule</dt><dd>BS-10042</dd></div>
+    <div><dt>Created</dt><dd>${co.createdDate}</dd></div>
+    <div><dt>Requested by</dt><dd>Jordan Kim</dd></div>`;
+
+  const reasonEl = document.getElementById('coReason');
+  if (isDraft) {
+    reasonEl.innerHTML = `<textarea class="co-reason" placeholder="Describe the reason for this change order…" onchange="currentCO.reason=this.value">${co.reason}</textarea>`;
+  } else {
+    reasonEl.innerHTML = `<p style="font-size:.85rem;color:#3e3e3c;margin:0">${co.reason || 'No reason provided.'}</p>`;
+  }
+
+  renderCOLines(isDraft);
+}
+
+function renderCOLines(editable) {
+  const co = currentCO;
+  let calcOrig = 0, calcNew = 0;
+
+  document.getElementById('coLinesBody').innerHTML = co.lines.map((line, i) => {
+    if (line.isRemoved) {
+      if (!line.isNew) calcOrig += line.originalAmt;
+      const delta = -(line.isNew ? line.newAmt : line.originalAmt);
+      return `<tr class="slds-hint-parent co-removed">
+        <td>${line.isNew ? 'NEW' : String(line.origIdx + 1).padStart(2, '0')}</td>
+        <td>${line.desc}</td>
+        <td class="num">${line.isNew ? '—' : money(line.originalAmt)}</td>
+        <td class="num">$0</td>
+        <td class="num"><span class="co-delta negative">${money(delta)}</span></td>
+        <td>${editable ? `<button class="slds-button slds-button_neutral" style="font-size:.7rem;padding:.2rem .5rem" onclick="undoRemoveCOLine(${i})">Undo</button>` : '<span style="font-size:.7rem;color:#706e6b">Removed</span>'}</td>
+      </tr>`;
+    }
+
+    if (!line.isNew) calcOrig += line.originalAmt;
+    calcNew += line.newAmt;
+    const origRef = line.isNew ? 0 : line.originalAmt;
+    const delta = line.newAmt - origRef;
+    const deltaClass = delta > 0 ? 'positive' : delta < 0 ? 'negative' : 'zero';
+    const deltaStr = delta > 0 ? '+' + money(delta) : delta < 0 ? money(delta) : '—';
+
+    const amtCell = editable
+      ? `<td><input type="number" class="co-input" value="${line.newAmt}" onchange="updateCOAmt(${i}, this.value)" onfocus="this.select()" /></td>`
+      : `<td class="num">${money(line.newAmt)}</td>`;
+
+    const descCell = editable && line.isNew
+      ? `<td><input type="text" class="co-input" style="width:200px;text-align:left" value="${line.desc}" onchange="updateCODesc(${i}, this.value)" /></td>`
+      : `<td>${line.desc}${line.isNew ? ' <span style="font-size:.65rem;background:#cdefc4;color:#194e31;padding:1px 6px;border-radius:8px;font-weight:600">NEW</span>' : ''}</td>`;
+
+    const actionCell = editable
+      ? `<td><button class="slds-button slds-button_neutral" style="font-size:.7rem;padding:.2rem .5rem;color:#ba0517" onclick="removeCOLine(${i})">Remove</button></td>`
+      : `<td></td>`;
+
+    return `<tr class="slds-hint-parent${line.isNew ? ' co-new-line-row' : ''}">
+      <td>${line.isNew ? 'NEW' : String(line.origIdx + 1).padStart(2, '0')}</td>
+      ${descCell}
+      <td class="num">${line.isNew ? '—' : money(line.originalAmt)}</td>
+      ${amtCell}
+      <td class="num"><span class="co-delta ${deltaClass}">${deltaStr}</span></td>
+      ${actionCell}
+    </tr>`;
+  }).join('');
+
+  const netDelta = calcNew - calcOrig;
+  const deltaClass = netDelta > 0 ? 'positive' : netDelta < 0 ? 'negative' : 'zero';
+  const deltaStr = netDelta > 0 ? '+' + money(netDelta) : netDelta < 0 ? money(netDelta) : '—';
+
+  document.getElementById('coLinesFoot').innerHTML = `
+    <tr style="background:#fafaf9;font-weight:700">
+      <td></td><td>Total</td>
+      <td class="num">${money(calcOrig)}</td>
+      <td class="num">${money(calcNew)}</td>
+      <td class="num"><span class="co-delta ${deltaClass}">${deltaStr}</span></td>
+      <td></td>
+    </tr>`;
+
+  renderCOSummary(calcOrig, calcNew);
+}
+
+function renderCOSummary(calcOrig, calcNew) {
+  const co = currentCO;
+  if (calcOrig === undefined) {
+    calcOrig = 0; calcNew = 0;
+    co.lines.forEach(line => {
+      if (!line.isNew) calcOrig += line.originalAmt;
+      if (!line.isRemoved) calcNew += line.newAmt;
+    });
+  }
+
+  let linesChanged = 0, linesAdded = 0, linesRemoved = 0;
+  co.lines.forEach(line => {
+    if (line.isRemoved) { linesRemoved++; return; }
+    if (line.isNew) linesAdded++;
+    else if (line.newAmt !== line.originalAmt) linesChanged++;
+  });
+
+  const netChange = calcNew - calcOrig;
+  const deltaClass = netChange > 0 ? 'positive' : netChange < 0 ? 'negative' : 'zero';
+  const deltaSign = netChange > 0 ? '+' : '';
+
+  document.getElementById('coSummary').innerHTML = `
+    <div class="item"><span class="label">Original total</span><span class="val">${money(calcOrig)}</span></div>
+    <div class="item"><span class="label">Revised total</span><span class="val">${money(calcNew)}</span></div>
+    <div class="item"><span class="label">Net change</span><span class="val co-delta ${deltaClass}">${deltaSign}${money(netChange)}</span></div>
+    <div class="item"><span class="label">Lines modified</span><span class="val">${linesChanged}</span></div>
+    <div class="item"><span class="label">Lines added</span><span class="val">${linesAdded}</span></div>
+    <div class="item"><span class="label">Lines removed</span><span class="val">${linesRemoved}</span></div>`;
+}
+
+function updateCOAmt(lineIdx, val) {
+  currentCO.lines[lineIdx].newAmt = Math.max(0, parseInt(val) || 0);
+  renderCOLines(true);
+}
+
+function updateCODesc(lineIdx, val) {
+  currentCO.lines[lineIdx].desc = val || 'New line item';
+}
+
+function addCOLine() {
+  currentCO.lines.push({
+    origIdx: -1,
+    desc: 'New line item',
+    originalAmt: 0,
+    newAmt: 0,
+    bill: 'Progress (monthly)',
+    isNew: true,
+    isRemoved: false,
+  });
+  renderCOLines(true);
+  toast('New line added — enter description and amount');
+}
+
+function removeCOLine(lineIdx) {
+  currentCO.lines[lineIdx].isRemoved = true;
+  renderCOLines(true);
+}
+
+function undoRemoveCOLine(lineIdx) {
+  currentCO.lines[lineIdx].isRemoved = false;
+  renderCOLines(true);
+}
+
+function submitCO() {
+  let hasChanges = false;
+  currentCO.lines.forEach(line => {
+    if (line.isRemoved) hasChanges = true;
+    if (line.isNew && !line.isRemoved) hasChanges = true;
+    if (!line.isNew && !line.isRemoved && line.newAmt !== line.originalAmt) hasChanges = true;
+  });
+  if (!hasChanges) { toast('Make at least one change before submitting'); return; }
+
+  const ta = document.querySelector('.co-reason');
+  if (ta) currentCO.reason = ta.value;
+
+  currentCO.status = 'submitted';
+  toast(currentCO.id + ' submitted for approval');
+  showCODetail();
+
+  setTimeout(() => {
+    currentCO.status = 'approved';
+    applyCOChanges(currentCO);
+    toast(currentCO.id + ' approved — billing schedule updated');
+    showCODetail();
+  }, 2000);
+}
+
+function applyCOChanges(co) {
+  co.lines.forEach(line => {
+    if (line.isRemoved && !line.isNew && line.origIdx >= 0 && line.origIdx < currentLines.length) {
+      currentLines[line.origIdx].amt = 0;
+      currentLines[line.origIdx].desc += ' [Removed by ' + co.id + ']';
+    } else if (!line.isRemoved && !line.isNew && line.origIdx >= 0 && line.origIdx < currentLines.length) {
+      currentLines[line.origIdx].amt = line.newAmt;
+    } else if (line.isNew && !line.isRemoved) {
+      currentLines.push({
+        desc: line.desc,
+        amt: line.newAmt,
+        bill: line.bill,
+        ms: '—',
+        pct: 0,
+        linkedMs: [],
+      });
+    }
+  });
+}
+
+function backFromCO() {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('s1').classList.add('active');
+  refreshLinesTable();
+  renderCOList();
+  renderPAList();
+
+  const totalSOV = currentLines.reduce((s, l) => s + l.amt, 0);
+  const totalBilled = payApps.reduce((s, pa) => s + pa.lineData.reduce((s2, d) => s2 + d.thisPeriod, 0), 0);
+  document.getElementById('summaryBar').innerHTML = `
+    <div class="item"><span class="label">Total contract value</span><span class="val">${money(totalSOV)}</span></div>
+    <div class="item"><span class="label">Lines</span><span class="val">${currentLines.length}</span></div>
+    <div class="item"><span class="label">Billed to date</span><span class="val">${money(totalBilled)}</span></div>
+    <div class="item"><span class="label">Remaining</span><span class="val">${money(totalSOV - totalBilled)}</span></div>`;
+  document.getElementById('lineCount').textContent = currentLines.length + ' lines';
+}
+
+function renderCOList() {
+  const el = document.getElementById('coListBody');
+  if (changeOrders.length === 0) {
+    el.innerHTML = '<div style="text-align:center;padding:1.25rem 1rem;color:#706e6b;font-size:.84rem">No change orders yet. Change orders let you modify an approved billing schedule.</div>';
+    return;
+  }
+
+  let html = `<table class="slds-table slds-table_bordered" style="font-size:.82rem">
+    <thead><tr class="slds-line-height_reset">
+      <th class="slds-text-title_caps" scope="col">Change order</th>
+      <th class="slds-text-title_caps" scope="col">Reason</th>
+      <th class="slds-text-title_caps num" scope="col" style="width:110px">Net change</th>
+      <th class="slds-text-title_caps num" scope="col" style="width:110px">Revised total</th>
+      <th class="slds-text-title_caps" scope="col" style="width:90px">Status</th>
+      <th class="slds-text-title_caps" scope="col" style="width:100px">Date</th>
+    </tr></thead><tbody>`;
+
+  changeOrders.forEach(co => {
+    let origTotal = 0, newTotal = 0;
+    co.lines.forEach(line => {
+      if (!line.isNew) origTotal += line.originalAmt;
+      if (!line.isRemoved) newTotal += line.newAmt;
+    });
+    const netChange = newTotal - origTotal;
+    const deltaClass = netChange > 0 ? 'positive' : netChange < 0 ? 'negative' : 'zero';
+    const deltaSign = netChange > 0 ? '+' : '';
+    const badgeCls = co.status === 'draft' ? 'badge-draft' : co.status === 'submitted' ? 'badge-submitted' : 'badge-approved';
+    const reasonShort = co.reason ? (co.reason.length > 40 ? co.reason.substring(0, 40) + '…' : co.reason) : '—';
+
+    html += `<tr class="slds-hint-parent pa-list-row" onclick="openCO('${co.id}')">
+      <td><div class="slds-truncate" style="color:#0176d3;font-weight:600">${co.id}</div></td>
+      <td><div class="slds-truncate">${reasonShort}</div></td>
+      <td class="num"><span class="co-delta ${deltaClass}">${deltaSign}${money(netChange)}</span></td>
+      <td class="num" style="font-weight:600">${money(newTotal)}</td>
+      <td><span class="badge ${badgeCls}">${co.status}</span></td>
+      <td>${co.createdDate}</td>
+    </tr>`;
+  });
+
+  html += '</tbody></table>';
+
+  const totalApprovedChange = changeOrders.filter(c => c.status === 'approved').reduce((s, co) => {
+    let o = 0, n = 0;
+    co.lines.forEach(l => { if (!l.isNew) o += l.originalAmt; if (!l.isRemoved) n += l.newAmt; });
+    return s + (n - o);
+  }, 0);
+  const pendingChange = changeOrders.filter(c => c.status === 'draft' || c.status === 'submitted').reduce((s, co) => {
+    let o = 0, n = 0;
+    co.lines.forEach(l => { if (!l.isNew) o += l.originalAmt; if (!l.isRemoved) n += l.newAmt; });
+    return s + (n - o);
+  }, 0);
+
+  const appClass = totalApprovedChange >= 0 ? 'positive' : 'negative';
+  const pendClass = pendingChange >= 0 ? 'positive' : 'negative';
+
+  html += `<div style="padding:.6rem 1rem;background:#fafaf9;border-top:1px solid #e5e5e5;font-size:.8rem;display:flex;gap:1.5rem;flex-wrap:wrap">
+    <div><span style="font-size:.68rem;font-weight:700;color:#706e6b;text-transform:uppercase">Approved changes</span>
+    <span style="font-weight:700;display:block" class="co-delta ${appClass}">${totalApprovedChange >= 0 ? '+' : ''}${money(totalApprovedChange)}</span></div>
+    <div><span style="font-size:.68rem;font-weight:700;color:#706e6b;text-transform:uppercase">Pending changes</span>
+    <span style="font-weight:700;display:block" class="co-delta ${pendClass}">${pendingChange >= 0 ? '+' : ''}${money(pendingChange)}</span></div>
+  </div>`;
+
+  el.innerHTML = html;
+}
+
+function openCO(coId) {
+  currentCO = changeOrders.find(c => c.id === coId);
+  if (currentCO) showCODetail();
 }
 
 // ───── Toast ────────────────────────────────────────────────
@@ -1721,4 +2157,3 @@ function toast(msg) {
 </script>
 </body>
 </html>
-
