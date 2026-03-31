@@ -51,6 +51,29 @@
     }
     .sf-nav button:hover { color: #0176d3; }
     .sf-nav button.active { color: #0176d3; font-weight: 700; border-bottom-color: #0176d3; }
+    .sf-nav button:disabled { opacity: .45; cursor: not-allowed; }
+
+    /* ── Billing schedule header ribbon (summary table) ── */
+    .bs-ribbon { margin-bottom: 1rem; border: 1px solid #c9c9c9; border-radius: .25rem; background: #fff; overflow: hidden; }
+    .bs-ribbon-table { width: 100%; border-collapse: collapse; font-size: .78rem; margin: 0 !important; }
+    .bs-ribbon-table thead th {
+      background: #fafaf9; font-size: .65rem; font-weight: 700; color: #706e6b;
+      text-transform: uppercase; letter-spacing: .04em; padding: .45rem .5rem; border-bottom: 1px solid #e5e5e5;
+      text-align: left; white-space: nowrap;
+    }
+    .bs-ribbon-table tbody td {
+      padding: .55rem .5rem; vertical-align: top; border-right: 1px solid #e5e5e5;
+      cursor: pointer; transition: background .12s;
+    }
+    .bs-ribbon-table tbody td:last-child { border-right: none; }
+    .bs-ribbon-table tbody td:hover, .bs-ribbon-table tbody td:focus {
+      background: #f0f7ff; outline: none;
+    }
+    .bs-ribbon-kpi { font-size: .95rem; font-weight: 700; color: #080707; line-height: 1.2; }
+    .bs-ribbon-sub { font-size: .72rem; color: #706e6b; margin-top: 4px; line-height: 1.35; }
+    .bs-ribbon-cta { font-size: .68rem; font-weight: 700; color: #0176d3; margin-top: 6px; }
+
+    .scroll-anchor { scroll-margin-top: 108px; }
 
     /* ── Toast ──────────────────────────────────── */
     .toast-wrap {
@@ -448,12 +471,13 @@
 
 <!-- ═══════ APP NAV ═══════ -->
 <nav class="sf-nav" id="appNav">
-  <button class="active" data-tab="bs">Billing Schedules</button>
-  <button data-tab="po" disabled>Purchase Orders</button>
-  <button data-tab="ag" disabled>Agreements</button>
-  <button data-tab="pa" disabled>Payment Applications</button>
-  <button data-tab="inv" disabled>Invoices</button>
-  <button data-tab="co" disabled>Change Orders</button>
+  <button type="button" class="active" data-tab="bs" id="navBs" onclick="navTabClick('bs')">Billing schedule</button>
+  <button type="button" data-tab="proj" id="navProj" disabled onclick="navTabClick('proj')">Monthly projection</button>
+  <button type="button" data-tab="pa" id="navPa" disabled onclick="navTabClick('pa')">Payment applications</button>
+  <button type="button" data-tab="inv" id="navInv" disabled onclick="navTabClick('inv')">Invoices</button>
+  <button type="button" data-tab="co" id="navCo" disabled onclick="navTabClick('co')">Change orders</button>
+  <button type="button" data-tab="po" disabled>Purchase orders</button>
+  <button type="button" data-tab="ag" disabled>Agreements</button>
 </nav>
 
 <!-- ═══════ TOAST ═══════ -->
@@ -530,11 +554,28 @@
         <div class="slds-no-flex slds-grid slds-align-top slds-grid_vertical-align-center" style="gap:.5rem">
           <span class="badge badge-draft" id="bsBadge">Draft</span>
           <button class="slds-button slds-button_neutral">Edit</button>
-          <button class="slds-button slds-button_neutral" id="btnProj" onclick="generateProjection()">
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style="vertical-align:-2px;margin-right:4px"><rect x="1" y="8" width="2.5" height="5" rx=".5" fill="#0176d3"/><rect x="5" y="5" width="2.5" height="8" rx=".5" fill="#0176d3"/><rect x="9" y="2" width="2.5" height="11" rx=".5" fill="#0176d3"/></svg>Generate Monthly Projection
-          </button>
           <button class="slds-button slds-button_brand" id="btnSubmit" onclick="submitBS()">Submit for Approval</button>
         </div>
+      </div>
+    </div>
+
+    <!-- Header summary table — same KPIs as sections below; click to jump -->
+    <div class="bs-ribbon" id="bsRibbonWrap">
+      <div style="overflow-x:auto">
+        <table class="bs-ribbon-table slds-table slds-table_bordered" role="presentation">
+          <thead>
+            <tr>
+              <th scope="col">Billing schedule</th>
+              <th scope="col">Monthly projection</th>
+              <th scope="col">Payment applications</th>
+              <th scope="col">Invoices</th>
+              <th scope="col">Change orders</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr id="bsRibbonRow"></tr>
+          </tbody>
+        </table>
       </div>
     </div>
 
@@ -546,10 +587,10 @@
       </div>
     </div>
 
-    <!-- Summary bar -->
-    <div class="card" style="overflow:hidden">
+    <!-- Summary bar + lines -->
+    <div class="card scroll-anchor" id="section-bs" style="overflow:hidden">
       <div class="summary-bar" id="summaryBar"></div>
-      <div class="card-head"><h2>Billing Schedule Lines</h2><span style="font-size:.75rem;color:#706e6b" id="lineCount"></span></div>
+      <div class="card-head"><h2>Billing schedule lines</h2><span style="font-size:.75rem;color:#706e6b" id="lineCount"></span></div>
       <div style="overflow-x:auto">
         <table class="slds-table slds-table_bordered slds-table_fixed-layout" style="min-width:900px">
           <thead>
@@ -567,8 +608,29 @@
       </div>
     </div>
 
+    <!-- Monthly projection (second) -->
+    <div class="card scroll-anchor" id="section-proj">
+      <div class="card-head">
+        <h2>Monthly billing projection</h2>
+        <div style="display:flex;align-items:center;gap:.75rem;flex-wrap:wrap">
+          <span style="font-size:.72rem;color:#706e6b" id="projRange"></span>
+          <button class="slds-button slds-button_neutral" id="btnProj" type="button" onclick="generateProjection()" style="font-size:.75rem;padding:.35rem .65rem">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style="vertical-align:-2px;margin-right:4px"><rect x="1" y="8" width="2.5" height="5" rx=".5" fill="#0176d3"/><rect x="5" y="5" width="2.5" height="8" rx=".5" fill="#0176d3"/><rect x="9" y="2" width="2.5" height="11" rx=".5" fill="#0176d3"/></svg>Generate projection
+          </button>
+        </div>
+      </div>
+      <div id="projCard">
+        <div class="proj-table-wrap" id="projTableWrap"></div>
+        <div class="proj-legend">
+          <span class="leg-ms">Milestone billing</span>
+          <span class="leg-prog">Progress (spread)</span>
+          <span class="leg-lump">Lump sum / % at start</span>
+        </div>
+      </div>
+    </div>
+
     <!-- Payment Applications card -->
-    <div class="card" id="paListCard">
+    <div class="card scroll-anchor" id="paListCard">
       <div class="card-head">
         <h2>Payment Applications</h2>
         <button class="slds-button slds-button_brand" style="font-size:.75rem;padding:.35rem .75rem" id="btnNewPA" onclick="openPAModal()">New Payment Application</button>
@@ -581,7 +643,7 @@
     </div>
 
     <!-- Invoices card -->
-    <div class="card" id="invListCard">
+    <div class="card scroll-anchor" id="invListCard">
       <div class="card-head">
         <h2>Invoices</h2>
       </div>
@@ -593,7 +655,7 @@
     </div>
 
     <!-- Change Orders card -->
-    <div class="card" id="coListCard">
+    <div class="card scroll-anchor" id="coListCard">
       <div class="card-head">
         <h2>Change Orders</h2>
         <button class="slds-button slds-button_brand" id="btnNewCO" onclick="openNewCO()" style="display:none;font-size:.75rem;padding:.35rem .75rem;background:#ba5700;border-color:#ba5700">
@@ -604,20 +666,6 @@
         <div style="text-align:center;padding:1.25rem 1rem;color:#706e6b;font-size:.84rem">
           No change orders yet. Change orders let you modify an approved billing schedule.
         </div>
-      </div>
-    </div>
-
-    <!-- Monthly Projection card (hidden until generated) -->
-    <div class="card" id="projCard">
-      <div class="card-head">
-        <h2>Monthly billing projection</h2>
-        <span style="font-size:.72rem;color:#706e6b" id="projRange"></span>
-      </div>
-      <div class="proj-table-wrap" id="projTableWrap"></div>
-      <div class="proj-legend">
-        <span class="leg-ms">Milestone billing</span>
-        <span class="leg-prog">Progress (spread)</span>
-        <span class="leg-lump">Lump sum / % at start</span>
       </div>
     </div>
   </section>
@@ -888,6 +936,143 @@ function linesForSource(src) {
 
 function money(n) { return n.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }); }
 
+// ───── Billing schedule nav + header ribbon ─────────────────
+let projSummary = { generated: false, range: '', total: 0 };
+
+function enableBssNav() {
+  ['navProj', 'navPa', 'navInv', 'navCo'].forEach(id => {
+    const b = document.getElementById(id);
+    if (b) b.disabled = false;
+  });
+}
+
+function setActiveNavTab(tab) {
+  document.querySelectorAll('#appNav button[data-tab]').forEach(btn => {
+    btn.classList.toggle('active', btn.getAttribute('data-tab') === tab);
+  });
+}
+
+function ensureBillingScheduleScreen() {
+  if (document.getElementById('s1').classList.contains('active')) return;
+  if (document.getElementById('s4').classList.contains('active')) {
+    backFromCO();
+    return;
+  }
+  if (document.getElementById('s2').classList.contains('active')) {
+    backToBS();
+    return;
+  }
+  if (document.getElementById('s3').classList.contains('active')) {
+    currentPA = null;
+    backFromInvoice();
+    if (document.getElementById('s2').classList.contains('active')) backToBS();
+  }
+}
+
+function navigateToBssSection(sectionElId) {
+  ensureBillingScheduleScreen();
+  setTimeout(() => {
+    const el = document.getElementById(sectionElId);
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, 70);
+}
+
+function navTabClick(tab) {
+  const onBss = document.getElementById('s1').classList.contains('active');
+  const map = { bs: 'section-bs', proj: 'section-proj', pa: 'paListCard', inv: 'invListCard', co: 'coListCard' };
+  if (!onBss) {
+    if (tab === 'bs') return;
+    toast('Open a billing schedule first');
+    return;
+  }
+  if (tab === 'bs') {
+    navigateToBssSection('section-bs');
+    setActiveNavTab('bs');
+    return;
+  }
+  navigateToBssSection(map[tab]);
+  setActiveNavTab(tab);
+}
+
+function renderBsRibbon() {
+  const row = document.getElementById('bsRibbonRow');
+  if (!row) return;
+
+  const lineSum = currentLines.reduce((s, l) => s + l.amt, 0);
+  const totalSOV = lineSum || (typeof selectedSrc !== 'undefined' && selectedSrc && selectedSrc.total) || 0;
+  const nLines = currentLines.length;
+  const bsBadge = document.getElementById('bsBadge');
+  const bsStatus = bsBadge ? bsBadge.textContent : '—';
+
+  const totalBilled = payApps.reduce((s, pa) => s + pa.lineData.reduce((s2, d) => s2 + d.thisPeriod, 0), 0);
+  const paOpen = payApps.filter(p => p.status === 'draft' || p.status === 'submitted').length;
+
+  const invApproved = invoices.filter(i => i.status === 'approved').reduce((s, i) => s + i.net, 0);
+  const invPending = invoices.filter(i => i.status === 'draft').reduce((s, i) => s + i.net, 0);
+
+  let coApproved = 0, coPending = 0;
+  changeOrders.forEach(co => {
+    let o = 0, n = 0;
+    co.lines.forEach(l => { if (!l.isNew) o += l.originalAmt; if (!l.isRemoved) n += l.newAmt; });
+    const d = n - o;
+    if (co.status === 'approved') coApproved += d;
+    else coPending += d;
+  });
+
+  const projKpi = projSummary.generated ? money(projSummary.total) : '—';
+  const projSub = projSummary.generated ? projSummary.range : 'Not generated · use Generate projection';
+
+  const cells = [
+    {
+      id: 'section-bs',
+      kpi: money(totalSOV || 0),
+      sub: `${nLines} lines · ${bsStatus}`,
+    },
+    {
+      id: 'section-proj',
+      kpi: projKpi,
+      sub: projSub,
+    },
+    {
+      id: 'paListCard',
+      kpi: String(payApps.length),
+      sub: `${money(totalBilled)} billed${paOpen ? ' · ' + paOpen + ' open' : ''}`,
+    },
+    {
+      id: 'invListCard',
+      kpi: String(invoices.length),
+      sub: `${money(invApproved)} approved${invPending ? ' · ' + money(invPending) + ' pending' : ''}`,
+    },
+    {
+      id: 'coListCard',
+      kpi: String(changeOrders.length),
+      sub: (coApproved || coPending)
+        ? `${coApproved >= 0 ? '+' : ''}${money(coApproved)} approved${coPending ? ' · ' + (coPending >= 0 ? '+' : '') + money(coPending) + ' pending' : ''}`
+        : 'No changes yet',
+    },
+  ];
+
+  const tabs = ['bs', 'proj', 'pa', 'inv', 'co'];
+  row.innerHTML = cells.map((c, i) => `
+    <td role="button" tabindex="0" data-ribbon-idx="${i}">
+      <div class="bs-ribbon-kpi">${c.kpi}</div>
+      <div class="bs-ribbon-sub">${c.sub}</div>
+      <div class="bs-ribbon-cta">Go to section →</div>
+    </td>`).join('');
+
+  row.querySelectorAll('td[data-ribbon-idx]').forEach(td => {
+    const i = +td.getAttribute('data-ribbon-idx');
+    const go = () => { navigateToBssSection(cells[i].id); setActiveNavTab(tabs[i]); };
+    td.addEventListener('click', go);
+    td.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        go();
+      }
+    });
+  });
+}
+
 // ───── Modal state machine ──────────────────────────────────
 let modalStep = 0;    // 0=choose source, 1=pick record, 2=preview lines
 let sourceKind = '';  // 'po' | 'agreement' | 'manual'
@@ -1105,8 +1290,10 @@ function saveManual() {
 }
 
 function renderDetail(src, lines) {
+  enableBssNav();
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById('s1').classList.add('active');
+  setActiveNavTab('bs');
 
   const total = lines.reduce((s, l) => s + l.amt, 0);
   const isPo = sourceKind === 'po';
@@ -1115,6 +1302,7 @@ function renderDetail(src, lines) {
   payApps = [];
   invoices = [];
   changeOrders = [];
+  projSummary = { generated: false, range: '', total: 0 };
   document.getElementById('projCard').classList.remove('visible');
 
   document.getElementById('bsBadge').textContent = 'Draft';
@@ -1152,6 +1340,8 @@ function renderDetail(src, lines) {
       <tr><td colspan="6" style="text-align:center;padding:2rem;color:#706e6b">
         No lines yet — add billing schedule lines manually or import from a spreadsheet.
       </td></tr>`;
+    renderPAList();
+    renderCOList();
     return;
   }
 
@@ -1376,9 +1566,13 @@ function generateProjection() {
   html += '</tbody></table>';
 
   document.getElementById('projTableWrap').innerHTML = html;
-  document.getElementById('projRange').textContent = months[0].label + ' – ' + months[months.length - 1].label;
+  const rangeStr = months[0].label + ' – ' + months[months.length - 1].label;
+  document.getElementById('projRange').textContent = rangeStr;
+  projSummary = { generated: true, range: rangeStr, total: grandTotal };
   document.getElementById('projCard').classList.add('visible');
-  document.getElementById('projCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  document.getElementById('section-proj').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  setActiveNavTab('proj');
+  renderBsRibbon();
   toast('Monthly projection generated');
 }
 
@@ -1463,6 +1657,7 @@ function selectPAMonth(monthKey) {
 }
 
 function showPADetail() {
+  setActiveNavTab('pa');
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById('s2').classList.add('active');
 
@@ -1573,14 +1768,15 @@ function submitPA() {
     currentPA.status = 'approved';
     toast(currentPA.id + ' approved — ready to invoice');
     showPADetail();
+    renderBsRibbon();
   }, 1800);
 }
 
 function backToBS() {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById('s1').classList.add('active');
+  setActiveNavTab('bs');
   renderPAList();
-  renderInvoiceList();
   renderCOList();
 }
 
@@ -1588,6 +1784,14 @@ function renderPAList() {
   const el = document.getElementById('paListBody');
   if (payApps.length === 0) {
     el.innerHTML = '<div style="text-align:center;padding:1.5rem 1rem;color:#706e6b;font-size:.84rem">No payment applications yet. Create one to start billing against this schedule.</div>';
+    const totalSOV = currentLines.reduce((s, l) => s + l.amt, 0) || (selectedSrc && selectedSrc.total) || 0;
+    document.getElementById('summaryBar').innerHTML = `
+      <div class="item"><span class="label">Total contract value</span><span class="val">${money(totalSOV)}</span></div>
+      <div class="item"><span class="label">Lines</span><span class="val">${currentLines.length}</span></div>
+      <div class="item"><span class="label">Billed to date</span><span class="val">$0</span></div>
+      <div class="item"><span class="label">Remaining</span><span class="val">${money(totalSOV)}</span></div>`;
+    renderInvoiceList();
+    renderBsRibbon();
     return;
   }
 
@@ -1645,6 +1849,7 @@ function renderPAList() {
     <div class="item"><span class="label">Remaining</span><span class="val">${money(totalSOV - totalBilled)}</span></div>`;
 
   renderInvoiceList();
+  renderBsRibbon();
 }
 
 function openPA(paId) {
@@ -1685,9 +1890,11 @@ function createInvoice() {
   currentInv = inv;
   toast('Invoice ' + invId + ' created from ' + pa.id);
   showInvoiceDetail();
+  renderBsRibbon();
 }
 
 function showInvoiceDetail() {
+  setActiveNavTab('inv');
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById('s3').classList.add('active');
 
@@ -1750,6 +1957,7 @@ function approveInvoice() {
   currentInv.status = 'approved';
   toast(currentInv.id + ' approved — synced to ERP');
   showInvoiceDetail();
+  renderBsRibbon();
 }
 
 function backFromInvoice() {
@@ -1853,6 +2061,7 @@ function openNewCO() {
 }
 
 function showCODetail() {
+  setActiveNavTab('co');
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById('s4').classList.add('active');
 
@@ -2037,6 +2246,9 @@ function submitCO() {
     applyCOChanges(currentCO);
     toast(currentCO.id + ' approved — billing schedule updated');
     showCODetail();
+    renderCOList();
+    renderPAList();
+    renderBsRibbon();
   }, 2000);
 }
 
@@ -2063,6 +2275,7 @@ function applyCOChanges(co) {
 function backFromCO() {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById('s1').classList.add('active');
+  setActiveNavTab('bs');
   refreshLinesTable();
   renderCOList();
   renderPAList();
@@ -2081,6 +2294,7 @@ function renderCOList() {
   const el = document.getElementById('coListBody');
   if (changeOrders.length === 0) {
     el.innerHTML = '<div style="text-align:center;padding:1.25rem 1rem;color:#706e6b;font-size:.84rem">No change orders yet. Change orders let you modify an approved billing schedule.</div>';
+    renderBsRibbon();
     return;
   }
 
@@ -2140,6 +2354,7 @@ function renderCOList() {
   </div>`;
 
   el.innerHTML = html;
+  renderBsRibbon();
 }
 
 function openCO(coId) {
