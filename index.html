@@ -1,0 +1,1723 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Billing Schedules — Click-through Prototype</title>
+  <link rel="stylesheet" href="https://unpkg.com/@salesforce-ux/design-system@2.25.5/assets/styles/salesforce-lightning-design-system.min.css" />
+  <style>
+    html, body { margin: 0; background: #f3f3f3; height: 100%; }
+    body { font-family: 'Salesforce Sans', Arial, sans-serif; }
+
+    /* ── Global header ─────────────────────────── */
+    .sf-header {
+      display: flex; align-items: center;
+      background: #032d60; height: 48px;
+      padding: 0 1rem; gap: 1rem;
+      position: sticky; top: 0; z-index: 80;
+    }
+    .sf-header .logo {
+      display: flex; align-items: center; gap: .5rem;
+      color: #fff; font-weight: 700; font-size: .85rem; white-space: nowrap;
+    }
+    .sf-header .search-box {
+      flex: 1; max-width: 380px; position: relative;
+    }
+    .sf-header .search-box input {
+      width: 100%; height: 32px; border-radius: 4px; border: none;
+      padding: 0 12px 0 30px; font-size: .8rem;
+      background: rgba(255,255,255,.15); color: #fff; outline: none;
+    }
+    .sf-header .search-box input::placeholder { color: rgba(255,255,255,.55); }
+    .sf-header .search-box svg { position: absolute; left: 8px; top: 50%; transform: translateY(-50%); }
+    .sf-header .avatar {
+      width: 28px; height: 28px; border-radius: 50%;
+      background: #1b96ff; color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      font-size: .7rem; font-weight: 700; margin-left: auto;
+    }
+
+    /* ── App nav tabs ──────────────────────────── */
+    .sf-nav {
+      display: flex; background: #fff;
+      border-bottom: 1px solid #c9c9c9;
+      padding: 0 1rem; overflow-x: auto;
+    }
+    .sf-nav button {
+      font-family: inherit; font-size: .8rem; font-weight: 400;
+      padding: .6rem 1rem; color: #3e3e3c;
+      border: none; border-bottom: 3px solid transparent;
+      background: none; cursor: pointer; white-space: nowrap;
+    }
+    .sf-nav button:hover { color: #0176d3; }
+    .sf-nav button.active { color: #0176d3; font-weight: 700; border-bottom-color: #0176d3; }
+
+    /* ── Toast ──────────────────────────────────── */
+    .toast-wrap {
+      position: fixed; top: 56px; left: 50%; transform: translateX(-50%);
+      z-index: 9999; pointer-events: none;
+    }
+    .toast-bar {
+      display: flex; align-items: center; gap: .5rem;
+      padding: .7rem 1.25rem; border-radius: .25rem;
+      background: #2e844a; color: #fff;
+      font-size: .85rem; font-weight: 600;
+      box-shadow: 0 4px 14px rgba(0,0,0,.18);
+      opacity: 0; transition: opacity .25s;
+      min-width: 300px;
+    }
+    .toast-bar.show { opacity: 1; pointer-events: auto; }
+
+    /* ── Page shell ─────────────────────────────── */
+    .page { max-width: 1100px; margin: 0 auto; padding: 1.25rem 1.5rem 3rem; }
+
+    /* ── Screens ───────────────────────────────── */
+    .screen { display: none; }
+    .screen.active { display: block; animation: fadeUp .2s ease; }
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+    /* ── Modal backdrop ─────────────────────────── */
+    .modal-bg {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,.5);
+      z-index: 200;
+      display: none;
+      justify-content: center; align-items: flex-start;
+      padding-top: 8vh;
+    }
+    .modal-bg.open { display: flex; animation: fadeUp .15s ease; }
+
+    .modal-box {
+      background: #fff; border-radius: .25rem;
+      width: 640px; max-width: 95vw;
+      box-shadow: 0 8px 32px rgba(0,0,0,.25);
+      display: flex; flex-direction: column;
+      max-height: 80vh;
+    }
+    .modal-box.wide { width: 780px; }
+    .modal-head {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: .75rem 1rem;
+      border-bottom: 1px solid #e5e5e5;
+    }
+    .modal-head h2 { font-size: .95rem; font-weight: 700; margin: 0; color: #080707; }
+    .modal-body { padding: 1rem; overflow-y: auto; flex: 1; }
+    .modal-foot {
+      padding: .75rem 1rem;
+      border-top: 1px solid #e5e5e5;
+      display: flex; justify-content: flex-end; gap: .5rem;
+    }
+
+    /* ── Illustration (empty state) ────────────── */
+    .empty-state {
+      text-align: center; padding: 3rem 1rem;
+    }
+    .empty-state .illo {
+      width: 160px; height: 120px; margin: 0 auto 1rem;
+    }
+    .empty-state h3 { font-size: 1.05rem; font-weight: 700; color: #080707; margin: 0 0 .25rem; }
+    .empty-state p { font-size: .85rem; color: #706e6b; max-width: 38ch; margin: 0 auto 1rem; }
+
+    /* ── Choice cards (inside modal) ───────────── */
+    .source-choices {
+      display: grid; grid-template-columns: 1fr 1fr 1fr; gap: .75rem;
+    }
+    @media (max-width: 600px) { .source-choices { grid-template-columns: 1fr; } }
+    .src-card {
+      border: 2px solid #c9c9c9; border-radius: .25rem;
+      padding: 1rem; cursor: pointer;
+      transition: border-color .12s, box-shadow .12s;
+      background: #fff; text-align: center;
+    }
+    .src-card:hover { border-color: #0176d3; box-shadow: 0 0 0 1px #0176d3; }
+    .src-card .ic {
+      width: 40px; height: 40px; border-radius: 8px;
+      margin: 0 auto .6rem;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .src-card h4 { font-size: .85rem; font-weight: 700; margin: 0 0 4px; }
+    .src-card p { font-size: .75rem; color: #706e6b; margin: 0; }
+
+    /* ── Selectable table rows ─────────────────── */
+    .slds-table .pick-row { cursor: pointer; transition: background .1s; }
+    .slds-table .pick-row:hover { background: #f0f7ff; }
+    .slds-table .pick-row.selected { background: #eaf5fe; }
+    .radio-dot {
+      width: 16px; height: 16px; border: 2px solid #c9c9c9;
+      border-radius: 50%; flex-shrink: 0;
+      display: inline-flex; align-items: center; justify-content: center;
+    }
+    .pick-row.selected .radio-dot { border-color: #0176d3; }
+    .pick-row.selected .radio-dot::after {
+      content: ''; width: 8px; height: 8px; border-radius: 50%; background: #0176d3;
+    }
+
+    /* ── Step indicator inside modal ───────────── */
+    .modal-steps {
+      display: flex; gap: 0; margin-bottom: 1rem;
+      border: 1px solid #e5e5e5; border-radius: .25rem; overflow: hidden;
+    }
+    .modal-steps .ms {
+      flex: 1; text-align: center; padding: .45rem .25rem;
+      font-size: .7rem; font-weight: 600;
+      background: #fafaf9; color: #706e6b;
+      border-right: 1px solid #e5e5e5;
+    }
+    .modal-steps .ms:last-child { border-right: none; }
+    .modal-steps .ms.done { background: #04844b; color: #fff; }
+    .modal-steps .ms.now { background: #0176d3; color: #fff; }
+
+    /* ── Metadata dl ───────────────────────────── */
+    .meta-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+      gap: .6rem 1rem;
+    }
+    .meta-grid dt { font-size: .7rem; color: #706e6b; font-weight: 700; text-transform: uppercase; margin: 0; }
+    .meta-grid dd { font-size: .84rem; color: #080707; margin: 3px 0 0; }
+
+    /* ── Badge ──────────────────────────────────── */
+    .badge {
+      display: inline-block; padding: 2px 8px; border-radius: 10px;
+      font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .03em;
+    }
+    .badge-draft { background: #e5e5e5; color: #3e3e3c; }
+    .badge-approved { background: #cdefc4; color: #194e31; }
+    .badge-active { background: #d4f0ff; color: #014486; }
+
+    /* ── Detail-page card ──────────────────────── */
+    .card { background: #fff; border: 1px solid #c9c9c9; border-radius: .25rem; margin-bottom: 1rem; }
+    .card-head {
+      padding: .65rem 1rem; border-bottom: 1px solid #e5e5e5;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .card-head h2 { font-size: .85rem; font-weight: 700; margin: 0; }
+    .card-body { padding: 1rem; }
+
+    /* ── Summary highlight ─────────────────────── */
+    .summary-bar {
+      display: flex; gap: 1.5rem; flex-wrap: wrap;
+      padding: .75rem 1rem;
+      background: #fafaf9; border-bottom: 1px solid #e5e5e5;
+      font-size: .8rem;
+    }
+    .summary-bar .item { display: flex; flex-direction: column; }
+    .summary-bar .label { font-size: .68rem; color: #706e6b; font-weight: 700; text-transform: uppercase; }
+    .summary-bar .val { font-size: .95rem; font-weight: 700; color: #080707; }
+
+    /* close btn inside modal */
+    .close-x {
+      background: none; border: none; padding: 4px; cursor: pointer;
+      color: #706e6b; font-size: 1.1rem; line-height: 1;
+    }
+    .close-x:hover { color: #080707; }
+
+    /* line-item number */
+    .num { text-align: right; font-variant-numeric: tabular-nums; }
+
+    /* ── Milestone pills ──────────────────────── */
+    .ms-cell { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; min-height: 26px; }
+    .ms-pill {
+      display: inline-flex; align-items: center; gap: 3px;
+      padding: 2px 8px; border-radius: 12px;
+      font-size: .7rem; font-weight: 600;
+      background: #eaf5fe; color: #014486;
+      white-space: nowrap; max-width: 180px;
+    }
+    .ms-pill .pill-rm {
+      cursor: pointer; font-size: .8rem; line-height: 1;
+      color: #0176d3; margin-left: 2px; font-weight: 700;
+    }
+    .ms-pill .pill-rm:hover { color: #ba5700; }
+    .ms-add-btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 22px; height: 22px; border-radius: 50%;
+      border: 1px dashed #0176d3; background: none;
+      color: #0176d3; font-size: .85rem; cursor: pointer;
+      padding: 0; line-height: 1; flex-shrink: 0;
+    }
+    .ms-add-btn:hover { background: #eaf5fe; }
+
+    /* ── Milestone picker popover ─────────────── */
+    .ms-picker-bg {
+      position: fixed; inset: 0; z-index: 300;
+      display: none;
+    }
+    .ms-picker-bg.open { display: block; }
+    .ms-picker {
+      position: fixed; z-index: 301;
+      width: 320px; max-height: 360px;
+      background: #fff; border: 1px solid #c9c9c9;
+      border-radius: .25rem;
+      box-shadow: 0 4px 16px rgba(0,0,0,.15);
+      display: flex; flex-direction: column;
+    }
+    .ms-picker-head {
+      padding: .5rem .75rem;
+      border-bottom: 1px solid #e5e5e5;
+      font-size: .8rem; font-weight: 700; color: #080707;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .ms-picker-search {
+      padding: .4rem .75rem; border-bottom: 1px solid #e5e5e5;
+    }
+    .ms-picker-search input {
+      width: 100%; border: 1px solid #c9c9c9; border-radius: 4px;
+      padding: .35rem .5rem; font-size: .8rem; font-family: inherit; outline: none;
+    }
+    .ms-picker-search input:focus { border-color: #0176d3; box-shadow: 0 0 0 1px #0176d3; }
+    .ms-picker-list {
+      overflow-y: auto; flex: 1; padding: .25rem 0;
+    }
+    .ms-picker-item {
+      display: flex; align-items: center; gap: .5rem;
+      padding: .4rem .75rem; cursor: pointer; font-size: .8rem;
+      transition: background .1s;
+    }
+    .ms-picker-item:hover { background: #f0f7ff; }
+    .ms-picker-item .cb {
+      width: 16px; height: 16px; border: 2px solid #c9c9c9;
+      border-radius: 3px; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .ms-picker-item.checked .cb { background: #0176d3; border-color: #0176d3; }
+    .ms-picker-item.checked .cb::after {
+      content: ''; width: 8px; height: 5px;
+      border-left: 2px solid #fff; border-bottom: 2px solid #fff;
+      transform: rotate(-45deg); margin-top: -2px;
+    }
+    .ms-picker-item .ms-name { flex: 1; }
+    .ms-picker-item .ms-date { font-size: .72rem; color: #706e6b; }
+    .ms-picker-foot {
+      padding: .5rem .75rem; border-top: 1px solid #e5e5e5;
+      display: flex; justify-content: flex-end; gap: .4rem;
+    }
+
+    /* ── Monthly projection ───────────────────── */
+    .proj-table-wrap { overflow-x: auto; }
+    .proj-table {
+      width: 100%; border-collapse: collapse; font-size: .78rem;
+      min-width: 800px;
+    }
+    .proj-table th, .proj-table td {
+      padding: .45rem .55rem;
+      border-bottom: 1px solid #e5e5e5;
+      white-space: nowrap;
+    }
+    .proj-table th {
+      background: #fafaf9;
+      font-size: .68rem; font-weight: 700; color: #706e6b;
+      text-transform: uppercase; letter-spacing: .03em;
+      text-align: center;
+      position: sticky; top: 0; z-index: 1;
+    }
+    .proj-table th:first-child, .proj-table td:first-child {
+      text-align: left; position: sticky; left: 0; background: #fff; z-index: 2;
+      min-width: 180px; max-width: 200px;
+      border-right: 1px solid #e5e5e5;
+    }
+    .proj-table th:first-child { background: #fafaf9; z-index: 3; }
+    .proj-table th:last-child, .proj-table td:last-child {
+      font-weight: 700; background: #fafaf9;
+      border-left: 1px solid #e5e5e5;
+    }
+    .proj-table td { text-align: right; font-variant-numeric: tabular-nums; }
+    .proj-table td.zero { color: #c9c9c9; }
+    .proj-table tr.proj-total td { font-weight: 700; background: #f0f7ff; border-top: 2px solid #0176d3; }
+    .proj-table tr.proj-total td:first-child { background: #f0f7ff; }
+    .proj-bar {
+      display: inline-block; height: 6px; border-radius: 3px;
+      background: #0176d3; vertical-align: middle; margin-right: 6px;
+    }
+    .proj-empty {
+      text-align: center; padding: 2rem 1rem; color: #706e6b; font-size: .85rem;
+    }
+    #projCard { display: none; }
+    #projCard.visible { display: block; animation: fadeUp .25s ease; }
+
+    .proj-legend {
+      display: flex; gap: 1rem; flex-wrap: wrap;
+      padding: .5rem 1rem; font-size: .72rem; color: #706e6b;
+      border-top: 1px solid #e5e5e5;
+    }
+    .proj-legend span::before {
+      content: ''; display: inline-block; width: 8px; height: 8px;
+      border-radius: 2px; margin-right: 4px; vertical-align: middle;
+    }
+    .proj-legend .leg-ms::before { background: #0176d3; }
+    .proj-legend .leg-prog::before { background: #2e844a; }
+    .proj-legend .leg-lump::before { background: #ba5700; }
+
+    /* ── Payment application ──────────────────── */
+    .pa-list-row { cursor: pointer; }
+    .pa-list-row:hover { background: #f0f7ff; }
+    .pct-input {
+      width: 58px; padding: .25rem .35rem; border: 1px solid #c9c9c9;
+      border-radius: 4px; font-size: .8rem; font-family: inherit;
+      text-align: right; font-variant-numeric: tabular-nums;
+    }
+    .pct-input:focus { border-color: #0176d3; box-shadow: 0 0 0 1px #0176d3; outline: none; }
+    .progress-track {
+      width: 100%; height: 8px; background: #e5e5e5; border-radius: 4px;
+      overflow: hidden; margin-top: 3px;
+    }
+    .progress-fill {
+      height: 100%; border-radius: 4px; transition: width .3s ease;
+    }
+    .progress-fill.low  { background: #ba5700; }
+    .progress-fill.mid  { background: #0176d3; }
+    .progress-fill.high { background: #2e844a; }
+    .pa-summary-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: .5rem 1rem;
+    }
+    .pa-summary-grid dt { font-size: .68rem; color: #706e6b; font-weight: 700; text-transform: uppercase; margin: 0; }
+    .pa-summary-grid dd { font-size: 1rem; font-weight: 700; color: #080707; margin: 3px 0 0; }
+    .badge-submitted { background: #fff3e0; color: #8c4b02; }
+    .month-card {
+      border: 2px solid #c9c9c9; border-radius: .25rem;
+      padding: .6rem .8rem; cursor: pointer;
+      transition: border-color .12s, box-shadow .12s;
+      text-align: center; background: #fff;
+    }
+    .month-card:hover { border-color: #0176d3; box-shadow: 0 0 0 1px #0176d3; }
+    .month-card.disabled { opacity: .4; cursor: not-allowed; pointer-events: none; }
+    .month-card .m-name { font-size: .85rem; font-weight: 700; color: #080707; }
+    .month-card .m-sub { font-size: .7rem; color: #706e6b; }
+    .month-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: .5rem; }
+    @media (max-width: 500px) { .month-grid { grid-template-columns: repeat(2, 1fr); } }
+
+    /* ── Invoice ──────────────────────────────── */
+    .badge-invoiced { background: #d4f0ff; color: #014486; }
+    .badge-paid { background: #cdefc4; color: #194e31; }
+    .inv-trail {
+      display: flex; align-items: center; gap: .4rem; flex-wrap: wrap;
+      font-size: .78rem; margin-top: .75rem;
+    }
+    .inv-trail .t-step {
+      padding: 4px 10px; border-radius: 4px;
+      background: #fafaf9; border: 1px solid #e5e5e5;
+    }
+    .inv-trail .t-step.done { background: #cdefc4; border-color: #2e844a; color: #194e31; }
+    .inv-trail .t-step.current { background: #fef0cd; border-color: #ba5700; color: #8c4b02; }
+    .inv-trail .t-arrow { color: #c9c9c9; }
+    .inv-line-table td, .inv-line-table th { font-size: .8rem; }
+  </style>
+</head>
+<body>
+
+<!-- ═══════ GLOBAL HEADER ═══════ -->
+<header class="sf-header">
+  <div class="logo">
+    <svg width="22" height="16" viewBox="0 0 22 16" fill="none"><path d="M9.2.8C7.9.3 6.5 0 5 .5 2.5 1.4 1 4.1 1.5 6.7 2 9.1 3.9 11 6.3 11.5c1.2.3 2.5.1 3.6-.4L9.2.8z" fill="#00A1E0"/><path d="M11 1.5c1.1-.7 2.4-1 3.8-.7 2.8.5 4.7 3.1 4.3 5.9-.3 2.2-2 4-4.2 4.5-1.3.3-2.6 0-3.7-.7L11 1.5z" fill="#0176D3"/><ellipse cx="11" cy="11.5" rx="6" ry="3.5" fill="#032D60" opacity=".13"/></svg>
+    <span>Project Finance</span>
+  </div>
+  <div class="search-box">
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="5.5" cy="5.5" r="4.5" stroke="rgba(255,255,255,.55)" stroke-width="1.5"/><line x1="9" y1="9" x2="13" y2="13" stroke="rgba(255,255,255,.55)" stroke-width="1.5" stroke-linecap="round"/></svg>
+    <input type="text" placeholder="Search billing schedules, POs, invoices…" disabled />
+  </div>
+  <div class="avatar">AS</div>
+</header>
+
+<!-- ═══════ APP NAV ═══════ -->
+<nav class="sf-nav" id="appNav">
+  <button class="active" data-tab="bs">Billing Schedules</button>
+  <button data-tab="po" disabled>Purchase Orders</button>
+  <button data-tab="ag" disabled>Agreements</button>
+  <button data-tab="pa" disabled>Payment Applications</button>
+  <button data-tab="inv" disabled>Invoices</button>
+  <button data-tab="co" disabled>Change Orders</button>
+</nav>
+
+<!-- ═══════ TOAST ═══════ -->
+<div class="toast-wrap"><div class="toast-bar" id="toast"><span id="toastMsg"></span></div></div>
+
+<div class="page">
+
+  <!-- ─── SCREEN 0 — EMPTY STATE ────────────────────── -->
+  <section class="screen active" id="s0">
+
+    <!-- Page header -->
+    <div class="slds-page-header" style="margin-bottom:1rem">
+      <div class="slds-page-header__row">
+        <div class="slds-has-flexi-truncate">
+          <div class="slds-page-header__name">
+            <div class="slds-page-header__name-title">
+              <h1><span class="slds-page-header__title slds-truncate" title="Billing Schedules">Billing Schedules</span></h1>
+            </div>
+          </div>
+        </div>
+        <div class="slds-no-flex slds-grid slds-align-top">
+          <div class="slds-page-header__controls">
+            <button class="slds-button slds-button_brand" onclick="openModal()">New Billing Schedule</button>
+          </div>
+        </div>
+      </div>
+      <div class="slds-page-header__detail-row">
+        <p class="slds-text-body_small" style="color:#706e6b">0 items • Recently viewed</p>
+      </div>
+    </div>
+
+    <!-- Empty illustration -->
+    <div class="card">
+      <div class="card-body">
+        <div class="slds-illustration slds-illustration_small" style="text-align:center;padding:2.5rem 1rem">
+          <svg class="slds-illustration__svg" viewBox="0 0 400 200" aria-hidden="true" style="width:200px;height:100px;margin:0 auto">
+            <g stroke="#c9c9c9" stroke-width="2" fill="none">
+              <rect x="100" y="30" width="200" height="130" rx="6" />
+              <line x1="130" y1="70" x2="270" y2="70" />
+              <line x1="130" y1="95" x2="250" y2="95" />
+              <line x1="130" y1="120" x2="230" y2="120" />
+            </g>
+            <g fill="#0176d3" opacity=".18">
+              <circle cx="118" cy="70" r="6" />
+              <circle cx="118" cy="95" r="6" />
+              <circle cx="118" cy="120" r="6" />
+            </g>
+          </svg>
+          <h3 class="slds-illustration__header" style="font-size:1rem;margin-top:.75rem">No billing schedules yet</h3>
+          <p class="slds-text-body_regular" style="color:#706e6b;max-width:36ch;margin:.25rem auto 1rem">
+            Create a billing schedule from a purchase order, agreement, or from scratch.
+          </p>
+          <button class="slds-button slds-button_brand" onclick="openModal()">New Billing Schedule</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── SCREEN 1 — BILLING SCHEDULE DETAIL (after creation) ── -->
+  <section class="screen" id="s1">
+
+    <div class="slds-page-header" style="margin-bottom:1rem">
+      <div class="slds-page-header__row">
+        <div class="slds-has-flexi-truncate">
+          <div class="slds-page-header__name">
+            <div class="slds-page-header__name-title">
+              <h1>
+                <span style="font-size:.72rem;color:#706e6b;display:block">Billing Schedule</span>
+                <span class="slds-page-header__title slds-truncate" title="BS-10042" id="bsTitle">BS-10042</span>
+              </h1>
+            </div>
+          </div>
+        </div>
+        <div class="slds-no-flex slds-grid slds-align-top slds-grid_vertical-align-center" style="gap:.5rem">
+          <span class="badge badge-draft" id="bsBadge">Draft</span>
+          <button class="slds-button slds-button_neutral">Edit</button>
+          <button class="slds-button slds-button_neutral" id="btnProj" onclick="generateProjection()">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style="vertical-align:-2px;margin-right:4px"><rect x="1" y="8" width="2.5" height="5" rx=".5" fill="#0176d3"/><rect x="5" y="5" width="2.5" height="8" rx=".5" fill="#0176d3"/><rect x="9" y="2" width="2.5" height="11" rx=".5" fill="#0176d3"/></svg>Generate Monthly Projection
+          </button>
+          <button class="slds-button slds-button_brand" id="btnSubmit" onclick="submitBS()">Submit for Approval</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Details card -->
+    <div class="card">
+      <div class="card-head"><h2>Details</h2></div>
+      <div class="card-body">
+        <div class="meta-grid" id="detailMeta"></div>
+      </div>
+    </div>
+
+    <!-- Summary bar -->
+    <div class="card" style="overflow:hidden">
+      <div class="summary-bar" id="summaryBar"></div>
+      <div class="card-head"><h2>Billing Schedule Lines</h2><span style="font-size:.75rem;color:#706e6b" id="lineCount"></span></div>
+      <div style="overflow-x:auto">
+        <table class="slds-table slds-table_bordered slds-table_fixed-layout" style="min-width:900px">
+          <thead>
+            <tr class="slds-line-height_reset">
+              <th class="slds-text-title_caps" scope="col" style="width:42px"><div class="slds-truncate" title="#">#</div></th>
+              <th class="slds-text-title_caps" scope="col"><div class="slds-truncate" title="Description">Description</div></th>
+              <th class="slds-text-title_caps num" scope="col" style="width:115px"><div class="slds-truncate" title="Amount">Amount</div></th>
+              <th class="slds-text-title_caps" scope="col" style="width:125px"><div class="slds-truncate" title="Billing Type">Billing type</div></th>
+              <th class="slds-text-title_caps" scope="col" style="width:210px"><div class="slds-truncate" title="Milestone Linked">Milestone linked</div></th>
+              <th class="slds-text-title_caps" scope="col" style="width:80px"><div class="slds-truncate" title="Status">Status</div></th>
+            </tr>
+          </thead>
+          <tbody id="linesBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Payment Applications card -->
+    <div class="card" id="paListCard">
+      <div class="card-head">
+        <h2>Payment Applications</h2>
+        <button class="slds-button slds-button_brand" style="font-size:.75rem;padding:.35rem .75rem" id="btnNewPA" onclick="openPAModal()">New Payment Application</button>
+      </div>
+      <div id="paListBody">
+        <div style="text-align:center;padding:1.5rem 1rem;color:#706e6b;font-size:.84rem">
+          No payment applications yet. Create one to start billing against this schedule.
+        </div>
+      </div>
+    </div>
+
+    <!-- Invoices card -->
+    <div class="card" id="invListCard">
+      <div class="card-head">
+        <h2>Invoices</h2>
+      </div>
+      <div id="invListBody">
+        <div style="text-align:center;padding:1.25rem 1rem;color:#706e6b;font-size:.84rem">
+          No invoices yet. Invoices are created from approved payment applications.
+        </div>
+      </div>
+    </div>
+
+    <!-- Monthly Projection card (hidden until generated) -->
+    <div class="card" id="projCard">
+      <div class="card-head">
+        <h2>Monthly billing projection</h2>
+        <span style="font-size:.72rem;color:#706e6b" id="projRange"></span>
+      </div>
+      <div class="proj-table-wrap" id="projTableWrap"></div>
+      <div class="proj-legend">
+        <span class="leg-ms">Milestone billing</span>
+        <span class="leg-prog">Progress (spread)</span>
+        <span class="leg-lump">Lump sum / % at start</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── SCREEN 2 — PAYMENT APPLICATION DETAIL ──────── -->
+  <section class="screen" id="s2">
+    <div class="slds-page-header" style="margin-bottom:1rem">
+      <div class="slds-page-header__row">
+        <div class="slds-has-flexi-truncate">
+          <div class="slds-page-header__name">
+            <div class="slds-page-header__name-title">
+              <h1>
+                <span style="font-size:.72rem;color:#706e6b;display:block">Payment Application</span>
+                <span class="slds-page-header__title slds-truncate" id="paTitle">PA-2201</span>
+              </h1>
+            </div>
+          </div>
+        </div>
+        <div class="slds-no-flex slds-grid slds-align-top slds-grid_vertical-align-center" style="gap:.5rem">
+          <span class="badge badge-draft" id="paBadge">Draft</span>
+          <button class="slds-button slds-button_neutral" onclick="backToBS()">Back to Schedule</button>
+          <button class="slds-button slds-button_brand" id="btnSubmitPA" onclick="submitPA()">Submit for Approval</button>
+          <button class="slds-button slds-button_brand" id="btnCreateInv" onclick="createInvoice()" style="display:none;background:#014486;border-color:#014486">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style="vertical-align:-2px;margin-right:3px"><rect x="2" y="1" width="10" height="12" rx="1.5" stroke="#fff" stroke-width="1.3" fill="none"/><path d="M5 5h4M5 7.5h3" stroke="#fff" stroke-width="1" stroke-linecap="round"/></svg>Create Invoice
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- PA summary -->
+    <div class="card">
+      <div class="card-head"><h2>Application summary</h2></div>
+      <div class="card-body">
+        <div class="pa-summary-grid" id="paSummary"></div>
+      </div>
+    </div>
+
+    <!-- PA line items with progress -->
+    <div class="card" style="overflow:hidden">
+      <div class="card-head"><h2>Line item progress</h2><span style="font-size:.72rem;color:#706e6b" id="paHint">Adjust % complete for each line, then submit.</span></div>
+      <div style="overflow-x:auto">
+        <table class="slds-table slds-table_bordered" style="min-width:950px">
+          <thead>
+            <tr class="slds-line-height_reset">
+              <th class="slds-text-title_caps" scope="col" style="width:36px">#</th>
+              <th class="slds-text-title_caps" scope="col">Description</th>
+              <th class="slds-text-title_caps num" scope="col" style="width:100px">SOV amount</th>
+              <th class="slds-text-title_caps num" scope="col" style="width:100px">Prev. billed</th>
+              <th class="slds-text-title_caps" scope="col" style="width:90px">% Complete</th>
+              <th class="slds-text-title_caps" scope="col" style="width:80px">Progress</th>
+              <th class="slds-text-title_caps num" scope="col" style="width:100px">This period</th>
+              <th class="slds-text-title_caps num" scope="col" style="width:90px">Retainage</th>
+              <th class="slds-text-title_caps num" scope="col" style="width:100px">Balance</th>
+            </tr>
+          </thead>
+          <tbody id="paLinesBody"></tbody>
+          <tfoot id="paLinesFoot"></tfoot>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── SCREEN 3 — INVOICE DETAIL ─────────────────── -->
+  <section class="screen" id="s3">
+    <div class="slds-page-header" style="margin-bottom:1rem">
+      <div class="slds-page-header__row">
+        <div class="slds-has-flexi-truncate">
+          <div class="slds-page-header__name">
+            <div class="slds-page-header__name-title">
+              <h1>
+                <span style="font-size:.72rem;color:#706e6b;display:block">Invoice</span>
+                <span class="slds-page-header__title slds-truncate" id="invTitle">INV-5580</span>
+              </h1>
+            </div>
+          </div>
+        </div>
+        <div class="slds-no-flex slds-grid slds-align-top slds-grid_vertical-align-center" style="gap:.5rem">
+          <span class="badge badge-draft" id="invBadge">Draft</span>
+          <button class="slds-button slds-button_neutral" id="btnBackFromInv" onclick="backFromInvoice()">Back</button>
+          <button class="slds-button slds-button_brand" id="btnApproveInv" onclick="approveInvoice()" style="background:#2e844a;border-color:#2e844a">Approve Invoice</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Invoice details -->
+    <div class="card">
+      <div class="card-head"><h2>Invoice details</h2></div>
+      <div class="card-body">
+        <div class="pa-summary-grid" id="invMeta"></div>
+        <div class="inv-trail" id="invTrail"></div>
+      </div>
+    </div>
+
+    <!-- Invoice line items -->
+    <div class="card" style="overflow:hidden">
+      <div class="card-head"><h2>Line items</h2></div>
+      <div style="overflow-x:auto">
+        <table class="slds-table slds-table_bordered inv-line-table" style="min-width:650px">
+          <thead>
+            <tr class="slds-line-height_reset">
+              <th class="slds-text-title_caps" scope="col" style="width:36px">#</th>
+              <th class="slds-text-title_caps" scope="col">Description</th>
+              <th class="slds-text-title_caps num" scope="col" style="width:110px">Billed amount</th>
+              <th class="slds-text-title_caps num" scope="col" style="width:100px">Retainage</th>
+              <th class="slds-text-title_caps num" scope="col" style="width:110px">Net amount</th>
+            </tr>
+          </thead>
+          <tbody id="invLinesBody"></tbody>
+          <tfoot id="invLinesFoot"></tfoot>
+        </table>
+      </div>
+    </div>
+  </section>
+
+</div><!-- /page -->
+
+
+<!-- ═══════════════════════════════════════════ -->
+<!--  MODAL — New Billing Schedule              -->
+<!-- ═══════════════════════════════════════════ -->
+<div class="modal-bg" id="modalBg" onclick="closeIfBg(event)">
+  <div class="modal-box wide" onclick="event.stopPropagation()">
+    <div class="modal-head">
+      <h2 id="modalTitle">New billing schedule</h2>
+      <button class="close-x" onclick="closeModal()" title="Close">&times;</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+    <div class="modal-foot" id="modalFoot"></div>
+  </div>
+</div>
+
+
+<!-- ═══════ MILESTONE PICKER POPOVER ═══════ -->
+<div class="ms-picker-bg" id="msPickerBg" onclick="closePicker()"></div>
+<div class="ms-picker" id="msPicker" style="display:none">
+  <div class="ms-picker-head">
+    <span>Link milestones</span>
+    <button class="close-x" onclick="closePicker()" style="font-size:.9rem">&times;</button>
+  </div>
+  <div class="ms-picker-search">
+    <input type="text" placeholder="Search milestones…" id="msSearchInput" oninput="filterMsList()" />
+  </div>
+  <div class="ms-picker-list" id="msPickerList"></div>
+  <div class="ms-picker-foot">
+    <button class="slds-button slds-button_neutral" style="font-size:.75rem;padding:.3rem .6rem" onclick="closePicker()">Cancel</button>
+    <button class="slds-button slds-button_brand" style="font-size:.75rem;padding:.3rem .6rem" onclick="applyMilestones()">Apply</button>
+  </div>
+</div>
+
+<script>
+// ───── Milestone pool ──────────────────────────────────────
+const MILESTONES = [
+  { id: 'MS-001', name: 'Notice to proceed',        date: 'Jan 15, 2026' },
+  { id: 'MS-002', name: 'Site mobilization',         date: 'Feb 01, 2026' },
+  { id: 'MS-003', name: 'Foundation complete',       date: 'Feb 28, 2026' },
+  { id: 'MS-004', name: 'Dry-in / weather-tight',    date: 'Mar 15, 2026' },
+  { id: 'MS-005', name: 'Rough-in inspection',       date: 'Apr 10, 2026' },
+  { id: 'MS-006', name: 'MEP trim-out',              date: 'May 05, 2026' },
+  { id: 'MS-007', name: 'Substantial completion',    date: 'Jun 15, 2026' },
+  { id: 'MS-008', name: 'TCO / occupancy',           date: 'Jun 30, 2026' },
+  { id: 'MS-009', name: 'Final inspection',          date: 'Jul 10, 2026' },
+  { id: 'MS-010', name: 'Project closeout',          date: 'Jul 31, 2026' },
+];
+
+// ───── Data ────────────────────────────────────────────────
+const POS = [
+  { id: 'PO-77821', customer: 'Northfield Utilities',  total: 728000, date: '2026-01-12', wo: 'SOW-4412 — Substation build' },
+  { id: 'PO-78104', customer: 'Metro Grid Partners',   total: 415000, date: '2026-02-03', wo: 'SOW-4530 — Feeder upgrade' },
+  { id: 'PO-78390', customer: 'Lakeshore Energy Co.',  total: 1240000,date: '2026-03-18', wo: 'SOW-4601 — Distribution expansion' },
+];
+
+const AGREEMENTS = [
+  { id: 'MSA-2019-04', customer: 'Northfield Utilities', wo: 'WO-4412 — Substation build', total: 728000, date: '2019-06-01' },
+  { id: 'MSA-2022-11', customer: 'SunBelt Fiber Co.',    wo: 'WO-5100 — Fiber backbone',   total: 562000, date: '2022-11-15' },
+  { id: 'MSA-2024-02', customer: 'AquaPure Municipal',   wo: 'WO-5208 — Water main rehab', total: 890000, date: '2024-02-28' },
+];
+
+function linesForSource(src) {
+  if (src.id === 'PO-77821' || src.id === 'MSA-2019-04') {
+    return [
+      { desc: 'Site prep & mobilization',   amt: 85000,  bill: '% at start',       ms: '—',              pct: 25, linkedMs: [] },
+      { desc: 'Structural / shell',         amt: 320000, bill: 'Milestone',         ms: 'Dry-in — Mar 15', pct: 0, linkedMs: [] },
+      { desc: 'Electrical rough-in',        amt: 118000, bill: 'Progress (monthly)',ms: '—',              pct: 0, linkedMs: [] },
+      { desc: 'MEP fit-out & finishes',     amt: 205000, bill: 'Milestone',         ms: 'TCO — Jun 30',   pct: 0, linkedMs: [] },
+    ];
+  }
+  if (src.id === 'PO-78104' || src.id === 'MSA-2022-11') {
+    return [
+      { desc: 'Mobilization & survey',      amt: 55000,  bill: 'Lump sum',         ms: '—',               pct: 0, linkedMs: [] },
+      { desc: 'Feeder cable install',       amt: 210000, bill: 'Progress (monthly)',ms: '—',              pct: 0, linkedMs: [] },
+      { desc: 'Switchgear & termination',   amt: 95000,  bill: 'Milestone',         ms: 'Energize — May 1',pct: 0, linkedMs: [] },
+      { desc: 'Testing & commissioning',    amt: 55000,  bill: 'Milestone',         ms: 'COD — Jun 15',   pct: 0, linkedMs: [] },
+    ];
+  }
+  return [
+    { desc: 'Engineering & design',        amt: 140000, bill: 'Milestone',         ms: 'IFC — Apr 10',   pct: 0, linkedMs: [] },
+    { desc: 'Pipe procurement',            amt: 380000, bill: 'Progress (monthly)',ms: '—',              pct: 0, linkedMs: [] },
+    { desc: 'Trenching & install',         amt: 420000, bill: 'Progress (monthly)',ms: '—',              pct: 0, linkedMs: [] },
+    { desc: 'Testing & restoration',       amt: 180000, bill: 'Milestone',         ms: 'Acceptance',     pct: 0, linkedMs: [] },
+    { desc: 'Contingency / allowances',    amt: 120000, bill: 'As needed',         ms: '—',              pct: 0, linkedMs: [] },
+  ];
+}
+
+function money(n) { return n.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }); }
+
+// ───── Modal state machine ──────────────────────────────────
+let modalStep = 0;    // 0=choose source, 1=pick record, 2=preview lines
+let sourceKind = '';  // 'po' | 'agreement' | 'manual'
+let selectedSrc = null;
+
+function openModal() {
+  modalStep = 0; sourceKind = ''; selectedSrc = null;
+  renderModal();
+  document.getElementById('modalBg').classList.add('open');
+}
+
+function closeModal() { document.getElementById('modalBg').classList.remove('open'); }
+function closeIfBg(e) { if (e.target === e.currentTarget) closeModal(); }
+
+function renderModal() {
+  const body = document.getElementById('modalBody');
+  const foot = document.getElementById('modalFoot');
+  const title = document.getElementById('modalTitle');
+
+  if (modalStep === 0) {
+    title.textContent = 'New billing schedule';
+    body.innerHTML = `
+      <div class="modal-steps">
+        <div class="ms now">1 · Source</div>
+        <div class="ms">2 · Select record</div>
+        <div class="ms">3 · Preview & save</div>
+      </div>
+      <p style="font-size:.85rem;color:#706e6b;margin:0 0 .75rem">How do you want to create this billing schedule?</p>
+      <div class="source-choices">
+        <div class="src-card" onclick="pickKind('po')">
+          <div class="ic" style="background:#eaf5fe">
+            <svg width="24" height="24" fill="none" viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="2" stroke="#0176d3" stroke-width="2"/><path d="M8 8h8M8 12h6M8 16h4" stroke="#0176d3" stroke-width="1.5" stroke-linecap="round"/></svg>
+          </div>
+          <h4>From purchase order</h4>
+          <p>Select a PO and auto-generate billing lines from its SOV.</p>
+        </div>
+        <div class="src-card" onclick="pickKind('agreement')">
+          <div class="ic" style="background:#fff3e0">
+            <svg width="24" height="24" fill="none" viewBox="0 0 24 24"><path d="M12 3L4 7v6c0 5 3.5 8.7 8 10 4.5-1.3 8-5 8-10V7l-8-4z" stroke="#ba5700" stroke-width="2"/><path d="M9 12l2 2 4-4" stroke="#ba5700" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <h4>From agreement</h4>
+          <p>Link to an MSA/work order and pull funded line items.</p>
+        </div>
+        <div class="src-card" onclick="pickKind('manual')">
+          <div class="ic" style="background:#f3f3f3">
+            <svg width="24" height="24" fill="none" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke="#3e3e3c" stroke-width="2" stroke-linecap="round"/></svg>
+          </div>
+          <h4>Manual entry</h4>
+          <p>Start from a blank schedule and add lines yourself.</p>
+        </div>
+      </div>`;
+    foot.innerHTML = `<button class="slds-button slds-button_neutral" onclick="closeModal()">Cancel</button>`;
+    return;
+  }
+
+  if (modalStep === 1) {
+    const isPo = sourceKind === 'po';
+    const list = isPo ? POS : AGREEMENTS;
+    title.textContent = isPo ? 'Select purchase order' : 'Select agreement';
+    body.innerHTML = `
+      <div class="modal-steps">
+        <div class="ms done">1 · Source</div>
+        <div class="ms now">2 · Select record</div>
+        <div class="ms">3 · Preview & save</div>
+      </div>
+      <table class="slds-table slds-table_bordered" style="margin-top:.5rem">
+        <thead>
+          <tr class="slds-line-height_reset">
+            <th scope="col" style="width:36px"></th>
+            <th class="slds-text-title_caps" scope="col"><div class="slds-truncate">${isPo ? 'PO number' : 'Agreement'}</div></th>
+            <th class="slds-text-title_caps" scope="col"><div class="slds-truncate">Customer</div></th>
+            <th class="slds-text-title_caps" scope="col"><div class="slds-truncate">${isPo ? 'SOW' : 'Work order'}</div></th>
+            <th class="slds-text-title_caps num" scope="col" style="width:120px"><div class="slds-truncate">Total</div></th>
+          </tr>
+        </thead>
+        <tbody>
+          ${list.map((r, i) => `
+          <tr class="slds-hint-parent pick-row" data-idx="${i}" onclick="selectRow(this, ${i})">
+            <td><div class="radio-dot"></div></td>
+            <td><div class="slds-truncate" style="color:#0176d3;font-weight:600">${r.id}</div></td>
+            <td><div class="slds-truncate">${r.customer}</div></td>
+            <td><div class="slds-truncate">${r.wo}</div></td>
+            <td class="num"><div class="slds-truncate">${money(r.total)}</div></td>
+          </tr>`).join('')}
+        </tbody>
+      </table>`;
+    foot.innerHTML = `
+      <button class="slds-button slds-button_neutral" onclick="modalStep=0;renderModal()">Back</button>
+      <button class="slds-button slds-button_brand" id="btnNext2" disabled onclick="goPreview()">Next</button>`;
+    return;
+  }
+
+  if (modalStep === 2) {
+    const src = selectedSrc;
+    const lines = linesForSource(src);
+    const total = lines.reduce((s, l) => s + l.amt, 0);
+    title.textContent = 'Preview billing schedule lines';
+    body.innerHTML = `
+      <div class="modal-steps">
+        <div class="ms done">1 · Source</div>
+        <div class="ms done">2 · Select record</div>
+        <div class="ms now">3 · Preview & save</div>
+      </div>
+      <div style="display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:.75rem">
+        <div><span style="font-size:.68rem;color:#706e6b;font-weight:700;text-transform:uppercase;display:block">Source</span><span style="font-size:.85rem;font-weight:600">${src.id}</span></div>
+        <div><span style="font-size:.68rem;color:#706e6b;font-weight:700;text-transform:uppercase;display:block">Customer</span><span style="font-size:.85rem">${src.customer}</span></div>
+        <div><span style="font-size:.68rem;color:#706e6b;font-weight:700;text-transform:uppercase;display:block">Total value</span><span style="font-size:.85rem;font-weight:700">${money(total)}</span></div>
+      </div>
+      <table class="slds-table slds-table_bordered" style="font-size:.82rem">
+        <thead>
+          <tr class="slds-line-height_reset">
+            <th class="slds-text-title_caps" scope="col" style="width:36px">#</th>
+            <th class="slds-text-title_caps" scope="col">Description</th>
+            <th class="slds-text-title_caps num" scope="col" style="width:120px">Amount</th>
+            <th class="slds-text-title_caps" scope="col" style="width:130px">Billing type</th>
+            <th class="slds-text-title_caps" scope="col" style="width:140px">Milestone</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${lines.map((l, i) => `
+          <tr class="slds-hint-parent">
+            <td>${String(i + 1).padStart(2, '0')}</td>
+            <td>${l.desc}</td>
+            <td class="num">${money(l.amt)}</td>
+            <td>${l.bill}</td>
+            <td>${l.ms}</td>
+          </tr>`).join('')}
+        </tbody>
+        <tfoot>
+          <tr style="background:#fafaf9"><td></td><td style="font-weight:700">Total</td><td class="num" style="font-weight:700">${money(total)}</td><td></td><td></td></tr>
+        </tfoot>
+      </table>
+      <div style="background:#eef4ff;border-left:4px solid #0176d3;padding:.6rem 1rem;border-radius:0 .25rem .25rem 0;font-size:.82rem;color:#014486;margin-top:.75rem">
+        <strong>${lines.length} lines</strong> will be created on billing schedule <strong>BS-10042</strong> from ${src.id}. You can edit individual lines after saving.
+      </div>`;
+    foot.innerHTML = `
+      <button class="slds-button slds-button_neutral" onclick="modalStep=1;renderModal()">Back</button>
+      <button class="slds-button slds-button_brand" onclick="saveBS()">Save Billing Schedule</button>`;
+    return;
+  }
+
+  // manual — step 2 shortcut
+  if (modalStep === 99) {
+    title.textContent = 'Manual billing schedule';
+    body.innerHTML = `
+      <div class="modal-steps">
+        <div class="ms done">1 · Source</div>
+        <div class="ms now">2 · Enter details</div>
+        <div class="ms">3 · Preview & save</div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:1rem">
+        <div>
+          <label style="font-size:.75rem;font-weight:600;color:#3e3e3c;display:block;margin-bottom:4px">Schedule name</label>
+          <input class="slds-input" type="text" value="Lakeshore Phase 2" style="width:100%;padding:.45rem .6rem;border:1px solid #c9c9c9;border-radius:4px;font-size:.85rem" />
+        </div>
+        <div>
+          <label style="font-size:.75rem;font-weight:600;color:#3e3e3c;display:block;margin-bottom:4px">Customer</label>
+          <input class="slds-input" type="text" value="Lakeshore Energy Co." style="width:100%;padding:.45rem .6rem;border:1px solid #c9c9c9;border-radius:4px;font-size:.85rem" />
+        </div>
+        <div>
+          <label style="font-size:.75rem;font-weight:600;color:#3e3e3c;display:block;margin-bottom:4px">Project</label>
+          <input class="slds-input" type="text" value="PRJ-20261" style="width:100%;padding:.45rem .6rem;border:1px solid #c9c9c9;border-radius:4px;font-size:.85rem" />
+        </div>
+        <div>
+          <label style="font-size:.75rem;font-weight:600;color:#3e3e3c;display:block;margin-bottom:4px">Total contract value</label>
+          <input class="slds-input" type="text" value="$540,000" style="width:100%;padding:.45rem .6rem;border:1px solid #c9c9c9;border-radius:4px;font-size:.85rem" />
+        </div>
+      </div>
+      <p style="font-size:.82rem;color:#706e6b;margin:0 0 .5rem">Add billing lines after saving, or import from a spreadsheet.</p>
+      <div style="background:#eef4ff;border-left:4px solid #0176d3;padding:.6rem 1rem;border-radius:0 .25rem .25rem 0;font-size:.82rem;color:#014486">
+        A blank billing schedule <strong>BS-10042</strong> will be created. You can add lines manually on the detail page.
+      </div>`;
+    foot.innerHTML = `
+      <button class="slds-button slds-button_neutral" onclick="modalStep=0;renderModal()">Back</button>
+      <button class="slds-button slds-button_brand" onclick="saveManual()">Save Billing Schedule</button>`;
+    return;
+  }
+}
+
+function pickKind(kind) {
+  sourceKind = kind;
+  if (kind === 'manual') { modalStep = 99; }
+  else { modalStep = 1; }
+  renderModal();
+}
+
+let selectedIdx = -1;
+function selectRow(tr, idx) {
+  document.querySelectorAll('.pick-row').forEach(r => r.classList.remove('selected'));
+  tr.classList.add('selected');
+  selectedIdx = idx;
+  const btn = document.getElementById('btnNext2');
+  if (btn) btn.disabled = false;
+}
+
+function goPreview() {
+  const list = sourceKind === 'po' ? POS : AGREEMENTS;
+  selectedSrc = list[selectedIdx];
+  modalStep = 2;
+  renderModal();
+}
+
+// ───── Save & render detail page ────────────────────────────
+function saveBS() {
+  closeModal();
+  toast('Billing schedule BS-10042 created from ' + selectedSrc.id);
+  renderDetail(selectedSrc, linesForSource(selectedSrc));
+}
+
+function saveManual() {
+  closeModal();
+  selectedSrc = { id: 'Manual', customer: 'Lakeshore Energy Co.', total: 540000, date: '2026-03-31', wo: '—' };
+  toast('Billing schedule BS-10042 created (manual)');
+  renderDetail(selectedSrc, []);
+}
+
+function renderDetail(src, lines) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('s1').classList.add('active');
+
+  const total = lines.reduce((s, l) => s + l.amt, 0);
+  const isPo = sourceKind === 'po';
+  const isManual = sourceKind === 'manual';
+
+  payApps = [];
+  invoices = [];
+  document.getElementById('projCard').classList.remove('visible');
+
+  document.getElementById('bsBadge').textContent = 'Draft';
+  document.getElementById('bsBadge').className = 'badge badge-draft';
+  document.getElementById('btnSubmit').style.display = '';
+  document.getElementById('btnNewPA').style.display = 'none';
+
+  document.getElementById('detailMeta').innerHTML = isManual
+    ? `<div><dt>Schedule</dt><dd>BS-10042</dd></div>
+       <div><dt>Customer</dt><dd>Lakeshore Energy Co.</dd></div>
+       <div><dt>Project</dt><dd>PRJ-20261</dd></div>
+       <div><dt>Source</dt><dd>Manual entry</dd></div>
+       <div><dt>Created</dt><dd>Mar 31, 2026</dd></div>
+       <div><dt>Owner</dt><dd>Jordan Kim</dd></div>`
+    : `<div><dt>Schedule</dt><dd>BS-10042</dd></div>
+       <div><dt>Source</dt><dd>${src.id}</dd></div>
+       <div><dt>Customer</dt><dd>${src.customer}</dd></div>
+       <div><dt>${isPo ? 'SOW' : 'Work order'}</dt><dd>${src.wo}</dd></div>
+       <div><dt>Created</dt><dd>Mar 31, 2026</dd></div>
+       <div><dt>Owner</dt><dd>Jordan Kim</dd></div>`;
+
+  document.getElementById('summaryBar').innerHTML = `
+    <div class="item"><span class="label">Total contract value</span><span class="val">${money(total || 540000)}</span></div>
+    <div class="item"><span class="label">Lines</span><span class="val">${lines.length || '0'}</span></div>
+    <div class="item"><span class="label">Billed to date</span><span class="val">$0</span></div>
+    <div class="item"><span class="label">Remaining</span><span class="val">${money(total || 540000)}</span></div>`;
+
+  document.getElementById('lineCount').textContent = lines.length + ' lines';
+
+  currentLines = lines;
+
+  if (lines.length === 0) {
+    document.getElementById('linesBody').innerHTML = `
+      <tr><td colspan="6" style="text-align:center;padding:2rem;color:#706e6b">
+        No lines yet — add billing schedule lines manually or import from a spreadsheet.
+      </td></tr>`;
+    return;
+  }
+
+  refreshLinesTable();
+  renderPAList();
+}
+
+function refreshLinesTable() {
+  document.getElementById('linesBody').innerHTML = currentLines.map((l, i) => `
+    <tr class="slds-hint-parent">
+      <td data-label="#"><div class="slds-truncate">${String(i + 1).padStart(2, '0')}</div></td>
+      <td data-label="Description"><div class="slds-truncate" style="color:#0176d3">${l.desc}</div></td>
+      <td data-label="Amount" class="num"><div class="slds-truncate">${money(l.amt)}</div></td>
+      <td data-label="Billing Type"><div class="slds-truncate">${l.bill}</div></td>
+      <td data-label="Milestone Linked">
+        <div class="ms-cell" id="msCell${i}">
+          ${l.linkedMs.map(msId => {
+            const m = MILESTONES.find(x => x.id === msId);
+            return m ? `<span class="ms-pill">${m.name}<span class="pill-rm" onclick="removeMilestone(${i},'${msId}')">&times;</span></span>` : '';
+          }).join('')}
+          <button class="ms-add-btn" title="Link milestone" onclick="openPicker(${i}, event)">+</button>
+        </div>
+      </td>
+      <td data-label="Status"><span class="badge badge-draft">Draft</span></td>
+    </tr>`).join('');
+}
+
+// ───── Milestone picker state ───────────────────────────────
+let currentLines = [];
+let pickerLineIdx = -1;
+let pickerSelected = [];
+
+function openPicker(lineIdx, evt) {
+  evt.stopPropagation();
+  pickerLineIdx = lineIdx;
+  pickerSelected = [...currentLines[lineIdx].linkedMs];
+
+  const btn = evt.currentTarget;
+  const rect = btn.getBoundingClientRect();
+  const picker = document.getElementById('msPicker');
+
+  let top = rect.bottom + 4;
+  let left = rect.left - 140;
+  if (left < 8) left = 8;
+  if (left + 320 > window.innerWidth) left = window.innerWidth - 328;
+  if (top + 360 > window.innerHeight) top = rect.top - 364;
+
+  picker.style.top = top + 'px';
+  picker.style.left = left + 'px';
+  picker.style.display = 'flex';
+  document.getElementById('msPickerBg').classList.add('open');
+  document.getElementById('msSearchInput').value = '';
+  renderPickerList('');
+  document.getElementById('msSearchInput').focus();
+}
+
+function closePicker() {
+  document.getElementById('msPicker').style.display = 'none';
+  document.getElementById('msPickerBg').classList.remove('open');
+}
+
+function filterMsList() {
+  renderPickerList(document.getElementById('msSearchInput').value);
+}
+
+function renderPickerList(query) {
+  const q = query.toLowerCase();
+  const filtered = MILESTONES.filter(m =>
+    m.name.toLowerCase().includes(q) || m.id.toLowerCase().includes(q)
+  );
+  document.getElementById('msPickerList').innerHTML = filtered.map(m => {
+    const checked = pickerSelected.includes(m.id);
+    return `<div class="ms-picker-item${checked ? ' checked' : ''}" onclick="toggleMs('${m.id}', this)">
+      <div class="cb"></div>
+      <span class="ms-name">${m.name}</span>
+      <span class="ms-date">${m.date}</span>
+    </div>`;
+  }).join('');
+}
+
+function toggleMs(msId, el) {
+  const idx = pickerSelected.indexOf(msId);
+  if (idx > -1) pickerSelected.splice(idx, 1);
+  else pickerSelected.push(msId);
+  el.classList.toggle('checked');
+}
+
+function applyMilestones() {
+  currentLines[pickerLineIdx].linkedMs = [...pickerSelected];
+  closePicker();
+  refreshLinesTable();
+  toast('Milestones updated for line ' + String(pickerLineIdx + 1).padStart(2, '0'));
+}
+
+function removeMilestone(lineIdx, msId) {
+  currentLines[lineIdx].linkedMs = currentLines[lineIdx].linkedMs.filter(id => id !== msId);
+  refreshLinesTable();
+}
+
+// ───── Monthly projection ───────────────────────────────────
+const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+function generateProjection() {
+  if (currentLines.length === 0) {
+    toast('No billing lines to project');
+    return;
+  }
+
+  const months = [];
+  for (let m = 0; m < 8; m++) {
+    const d = new Date(2026, m, 1);
+    months.push({ key: `2026-${String(m+1).padStart(2,'0')}`, label: MONTH_NAMES[m] + ' 2026' });
+  }
+
+  const grid = currentLines.map((line, li) => {
+    const row = {};
+    months.forEach(m => { row[m.key] = 0; });
+
+    const linkedDates = line.linkedMs.map(msId => {
+      const ms = MILESTONES.find(x => x.id === msId);
+      if (!ms) return null;
+      const parsed = new Date(ms.date + '');
+      return { id: msId, month: `2026-${String(parsed.getMonth()+1).padStart(2,'0')}` };
+    }).filter(Boolean);
+
+    const billType = line.bill.toLowerCase();
+
+    if (billType.includes('milestone') && linkedDates.length > 0) {
+      const perMs = Math.round(line.amt / linkedDates.length);
+      linkedDates.forEach((ld, idx) => {
+        const amt = idx === linkedDates.length - 1 ? line.amt - perMs * (linkedDates.length - 1) : perMs;
+        if (row[ld.month] !== undefined) row[ld.month] += amt;
+      });
+    } else if (billType.includes('milestone') && linkedDates.length === 0) {
+      const msMatch = line.ms.match(/(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)/i);
+      if (msMatch) {
+        const mi = MONTH_NAMES.findIndex(n => n.toLowerCase() === msMatch[1].toLowerCase());
+        if (mi >= 0) {
+          const k = `2026-${String(mi+1).padStart(2,'0')}`;
+          if (row[k] !== undefined) row[k] = line.amt;
+        }
+      } else {
+        const mid = Math.floor(months.length / 2);
+        row[months[mid].key] = line.amt;
+      }
+    } else if (billType.includes('progress') || billType.includes('monthly')) {
+      let startIdx = 0;
+      let endIdx = months.length - 1;
+      if (linkedDates.length > 0) {
+        const monthIndices = linkedDates.map(ld => months.findIndex(m => m.key === ld.month)).filter(i => i >= 0);
+        if (monthIndices.length > 0) {
+          startIdx = Math.max(0, Math.min(...monthIndices) - 1);
+          endIdx = Math.max(...monthIndices);
+        }
+      }
+      const span = endIdx - startIdx + 1;
+      const perMonth = Math.round(line.amt / span);
+      for (let mi = startIdx; mi <= endIdx; mi++) {
+        row[months[mi].key] = mi === endIdx ? line.amt - perMonth * (span - 1) : perMonth;
+      }
+    } else if (billType.includes('lump') || billType.includes('% at start') || billType.includes('at start')) {
+      row[months[0].key] = line.amt;
+    } else {
+      const span = months.length;
+      const perMonth = Math.round(line.amt / span);
+      months.forEach((m, mi) => {
+        row[m.key] = mi === span - 1 ? line.amt - perMonth * (span - 1) : perMonth;
+      });
+    }
+    return row;
+  });
+
+  const totals = {};
+  months.forEach(m => { totals[m.key] = 0; });
+  grid.forEach(row => { months.forEach(m => { totals[m.key] += row[m.key]; }); });
+  const grandTotal = currentLines.reduce((s, l) => s + l.amt, 0);
+
+  const maxCell = Math.max(...Object.values(totals), 1);
+
+  let html = '<table class="proj-table"><thead><tr>';
+  html += '<th>Billing line</th>';
+  months.forEach(m => { html += `<th>${m.label}</th>`; });
+  html += '<th>Total</th></tr></thead><tbody>';
+
+  currentLines.forEach((line, li) => {
+    const row = grid[li];
+    const lineTotal = months.reduce((s, m) => s + row[m.key], 0);
+    html += '<tr>';
+    html += `<td>${String(li+1).padStart(2,'0')}. ${line.desc}</td>`;
+    months.forEach(m => {
+      const v = row[m.key];
+      if (v === 0) {
+        html += '<td class="zero">—</td>';
+      } else {
+        html += `<td>${money(v)}</td>`;
+      }
+    });
+    html += `<td>${money(lineTotal)}</td>`;
+    html += '</tr>';
+  });
+
+  html += '<tr class="proj-total">';
+  html += '<td>Monthly total</td>';
+  let cumulative = 0;
+  months.forEach(m => {
+    cumulative += totals[m.key];
+    const barW = Math.round((totals[m.key] / maxCell) * 40);
+    html += `<td><span class="proj-bar" style="width:${barW}px"></span>${money(totals[m.key])}</td>`;
+  });
+  html += `<td>${money(grandTotal)}</td>`;
+  html += '</tr>';
+
+  html += '<tr style="font-size:.72rem;color:#706e6b"><td>Cumulative</td>';
+  cumulative = 0;
+  months.forEach(m => {
+    cumulative += totals[m.key];
+    html += `<td style="font-weight:600;color:#3e3e3c">${money(cumulative)}</td>`;
+  });
+  html += `<td></td></tr>`;
+
+  html += '</tbody></table>';
+
+  document.getElementById('projTableWrap').innerHTML = html;
+  document.getElementById('projRange').textContent = months[0].label + ' – ' + months[months.length - 1].label;
+  document.getElementById('projCard').classList.add('visible');
+  document.getElementById('projCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  toast('Monthly projection generated');
+}
+
+// ───── Payment application state ────────────────────────────
+const PA_MONTHS = [
+  { key: '2026-01', label: 'January 2026',  short: 'Jan 2026' },
+  { key: '2026-02', label: 'February 2026', short: 'Feb 2026' },
+  { key: '2026-03', label: 'March 2026',    short: 'Mar 2026' },
+  { key: '2026-04', label: 'April 2026',    short: 'Apr 2026' },
+  { key: '2026-05', label: 'May 2026',      short: 'May 2026' },
+  { key: '2026-06', label: 'June 2026',     short: 'Jun 2026' },
+  { key: '2026-07', label: 'July 2026',     short: 'Jul 2026' },
+  { key: '2026-08', label: 'August 2026',   short: 'Aug 2026' },
+];
+
+let payApps = [];
+let currentPA = null;
+let paCounter = 2200;
+const RETAINAGE_RATE = 0.05;
+
+function openPAModal() {
+  if (currentLines.length === 0) { toast('Create billing lines first'); return; }
+
+  const usedMonths = payApps.map(p => p.month);
+  const body = document.getElementById('modalBody');
+  const foot = document.getElementById('modalFoot');
+  const title = document.getElementById('modalTitle');
+
+  title.textContent = 'New payment application';
+  body.innerHTML = `
+    <p style="font-size:.85rem;color:#706e6b;margin:0 0 .75rem">Select the billing period for this payment application.</p>
+    <div class="month-grid">
+      ${PA_MONTHS.map(m => {
+        const used = usedMonths.includes(m.key);
+        return `<div class="month-card${used ? ' disabled' : ''}" onclick="${used ? '' : `selectPAMonth('${m.key}')`}">
+          <div class="m-name">${m.short}</div>
+          <div class="m-sub">${used ? 'Already created' : 'Available'}</div>
+        </div>`;
+      }).join('')}
+    </div>`;
+  foot.innerHTML = `<button class="slds-button slds-button_neutral" onclick="closeModal()">Cancel</button>`;
+  document.getElementById('modalBg').classList.add('open');
+}
+
+function selectPAMonth(monthKey) {
+  closeModal();
+  paCounter++;
+  const paId = 'PA-' + paCounter;
+  const monthInfo = PA_MONTHS.find(m => m.key === monthKey);
+
+  const prevBilled = {};
+  currentLines.forEach((line, i) => {
+    let total = 0;
+    payApps.filter(p => p.status !== 'draft' || true).forEach(p => {
+      if (p.lineData[i]) total += p.lineData[i].thisPeriod;
+    });
+    prevBilled[i] = total;
+  });
+
+  const pa = {
+    id: paId,
+    month: monthKey,
+    monthLabel: monthInfo.label,
+    monthShort: monthInfo.short,
+    status: 'draft',
+    lineData: currentLines.map((line, i) => {
+      const prev = prevBilled[i] || 0;
+      const prevPct = line.amt > 0 ? Math.round((prev / line.amt) * 100) : 0;
+      return {
+        pctComplete: prevPct,
+        prevBilled: prev,
+        thisPeriod: 0,
+        retainage: 0,
+        balance: line.amt - prev,
+      };
+    }),
+  };
+
+  payApps.push(pa);
+  currentPA = pa;
+  showPADetail();
+}
+
+function showPADetail() {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('s2').classList.add('active');
+
+  document.getElementById('paTitle').textContent = currentPA.id;
+  document.getElementById('paBadge').textContent = currentPA.status === 'draft' ? 'Draft' : currentPA.status === 'submitted' ? 'Submitted' : 'Approved';
+  document.getElementById('paBadge').className = 'badge ' + (currentPA.status === 'draft' ? 'badge-draft' : currentPA.status === 'submitted' ? 'badge-submitted' : 'badge-approved');
+
+  const isEditable = currentPA.status === 'draft';
+  document.getElementById('btnSubmitPA').style.display = isEditable ? '' : 'none';
+  document.getElementById('paHint').textContent = isEditable ? 'Adjust % complete for each line, then submit.' : 'This application has been ' + currentPA.status + '.';
+
+  const isApproved = currentPA.status === 'approved';
+  const hasInvoice = invoices.some(inv => inv.paId === currentPA.id);
+  document.getElementById('btnCreateInv').style.display = (isApproved && !hasInvoice) ? '' : 'none';
+
+  renderPASummary();
+  renderPALines(isEditable);
+}
+
+function renderPASummary() {
+  const totalThisPeriod = currentPA.lineData.reduce((s, d) => s + d.thisPeriod, 0);
+  const totalRetainage = currentPA.lineData.reduce((s, d) => s + d.retainage, 0);
+  const netPayable = totalThisPeriod - totalRetainage;
+  const totalSOV = currentLines.reduce((s, l) => s + l.amt, 0);
+
+  document.getElementById('paSummary').innerHTML = `
+    <div><dt>Pay app</dt><dd>${currentPA.id}</dd></div>
+    <div><dt>Period</dt><dd>${currentPA.monthLabel}</dd></div>
+    <div><dt>Schedule</dt><dd>BS-10042</dd></div>
+    <div><dt>This period</dt><dd>${money(totalThisPeriod)}</dd></div>
+    <div><dt>Retainage (5%)</dt><dd>${money(totalRetainage)}</dd></div>
+    <div><dt>Net payable</dt><dd style="color:#2e844a">${money(netPayable)}</dd></div>`;
+}
+
+function renderPALines(editable) {
+  let totalSOV = 0, totalPrev = 0, totalThis = 0, totalRet = 0, totalBal = 0;
+
+  document.getElementById('paLinesBody').innerHTML = currentLines.map((line, i) => {
+    const d = currentPA.lineData[i];
+    totalSOV += line.amt;
+    totalPrev += d.prevBilled;
+    totalThis += d.thisPeriod;
+    totalRet += d.retainage;
+    totalBal += d.balance;
+
+    const pctFill = d.pctComplete;
+    const fillClass = pctFill < 30 ? 'low' : pctFill < 70 ? 'mid' : 'high';
+
+    const pctCell = editable
+      ? `<td><input type="number" class="pct-input" min="0" max="100" value="${d.pctComplete}" onchange="updateLinePct(${i}, this.value)" onfocus="this.select()" />%</td>`
+      : `<td style="text-align:center">${d.pctComplete}%</td>`;
+
+    return `<tr class="slds-hint-parent">
+      <td>${String(i + 1).padStart(2, '0')}</td>
+      <td>${line.desc}</td>
+      <td class="num">${money(line.amt)}</td>
+      <td class="num">${money(d.prevBilled)}</td>
+      ${pctCell}
+      <td><div class="progress-track"><div class="progress-fill ${fillClass}" style="width:${pctFill}%"></div></div><div style="font-size:.65rem;color:#706e6b;text-align:center;margin-top:1px">${pctFill}%</div></td>
+      <td class="num" style="font-weight:600">${money(d.thisPeriod)}</td>
+      <td class="num">${money(d.retainage)}</td>
+      <td class="num">${money(d.balance)}</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('paLinesFoot').innerHTML = `
+    <tr style="background:#fafaf9;font-weight:700">
+      <td></td>
+      <td>Total</td>
+      <td class="num">${money(totalSOV)}</td>
+      <td class="num">${money(totalPrev)}</td>
+      <td></td>
+      <td></td>
+      <td class="num">${money(totalThis)}</td>
+      <td class="num">${money(totalRet)}</td>
+      <td class="num">${money(totalBal)}</td>
+    </tr>`;
+
+  renderPASummary();
+}
+
+function updateLinePct(lineIdx, val) {
+  const pct = Math.max(0, Math.min(100, parseInt(val) || 0));
+  const line = currentLines[lineIdx];
+  const d = currentPA.lineData[lineIdx];
+
+  const totalBilledAtPct = Math.round(line.amt * pct / 100);
+  const thisPeriod = Math.max(0, totalBilledAtPct - d.prevBilled);
+  const retainage = Math.round(thisPeriod * RETAINAGE_RATE);
+
+  d.pctComplete = pct;
+  d.thisPeriod = thisPeriod;
+  d.retainage = retainage;
+  d.balance = line.amt - d.prevBilled - thisPeriod;
+
+  renderPALines(true);
+}
+
+function submitPA() {
+  const totalThis = currentPA.lineData.reduce((s, d) => s + d.thisPeriod, 0);
+  if (totalThis === 0) { toast('Enter progress on at least one line'); return; }
+
+  currentPA.status = 'submitted';
+  toast(currentPA.id + ' submitted for approval');
+  showPADetail();
+
+  setTimeout(() => {
+    currentPA.status = 'approved';
+    toast(currentPA.id + ' approved — ready to invoice');
+    showPADetail();
+  }, 1800);
+}
+
+function backToBS() {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('s1').classList.add('active');
+  renderPAList();
+  renderInvoiceList();
+}
+
+function renderPAList() {
+  const el = document.getElementById('paListBody');
+  if (payApps.length === 0) {
+    el.innerHTML = '<div style="text-align:center;padding:1.5rem 1rem;color:#706e6b;font-size:.84rem">No payment applications yet. Create one to start billing against this schedule.</div>';
+    return;
+  }
+
+  let html = `<table class="slds-table slds-table_bordered" style="font-size:.82rem">
+    <thead><tr class="slds-line-height_reset">
+      <th class="slds-text-title_caps" scope="col">Pay app</th>
+      <th class="slds-text-title_caps" scope="col">Period</th>
+      <th class="slds-text-title_caps num" scope="col" style="width:100px">Amount</th>
+      <th class="slds-text-title_caps num" scope="col" style="width:95px">Retainage</th>
+      <th class="slds-text-title_caps num" scope="col" style="width:95px">Net payable</th>
+      <th class="slds-text-title_caps" scope="col" style="width:80px">Status</th>
+      <th class="slds-text-title_caps" scope="col" style="width:90px">Invoice</th>
+    </tr></thead><tbody>`;
+
+  payApps.forEach(pa => {
+    const amt = pa.lineData.reduce((s, d) => s + d.thisPeriod, 0);
+    const ret = pa.lineData.reduce((s, d) => s + d.retainage, 0);
+    const badgeCls = pa.status === 'draft' ? 'badge-draft' : pa.status === 'submitted' ? 'badge-submitted' : 'badge-approved';
+    const inv = invoices.find(i => i.paId === pa.id);
+    const invCell = inv
+      ? `<span style="color:#0176d3;font-weight:600;cursor:pointer" onclick="event.stopPropagation();openInvoice('${inv.id}')">${inv.id}</span>`
+      : (pa.status === 'approved' ? '<span style="color:#706e6b">—</span>' : '');
+    html += `<tr class="slds-hint-parent pa-list-row" onclick="openPA('${pa.id}')">
+      <td><div class="slds-truncate" style="color:#0176d3;font-weight:600">${pa.id}</div></td>
+      <td>${pa.monthLabel}</td>
+      <td class="num">${money(amt)}</td>
+      <td class="num">${money(ret)}</td>
+      <td class="num" style="font-weight:600">${money(amt - ret)}</td>
+      <td><span class="badge ${badgeCls}">${pa.status}</span></td>
+      <td>${invCell}</td>
+    </tr>`;
+  });
+
+  html += '</tbody></table>';
+
+  const totalBilled = payApps.reduce((s, pa) => s + pa.lineData.reduce((s2, d) => s2 + d.thisPeriod, 0), 0);
+  const totalSOV = currentLines.reduce((s, l) => s + l.amt, 0);
+  const overallPct = totalSOV > 0 ? Math.round((totalBilled / totalSOV) * 100) : 0;
+  const fillClass = overallPct < 30 ? 'low' : overallPct < 70 ? 'mid' : 'high';
+
+  html += `<div style="padding:.75rem 1rem;background:#fafaf9;border-top:1px solid #e5e5e5;display:flex;align-items:center;gap:1rem;flex-wrap:wrap">
+    <div style="font-size:.72rem;font-weight:700;color:#706e6b;text-transform:uppercase">Overall billed</div>
+    <div style="flex:1;min-width:120px;max-width:300px">
+      <div class="progress-track" style="height:10px"><div class="progress-fill ${fillClass}" style="width:${overallPct}%"></div></div>
+    </div>
+    <div style="font-size:.85rem;font-weight:700">${overallPct}% — ${money(totalBilled)} of ${money(totalSOV)}</div>
+  </div>`;
+
+  el.innerHTML = html;
+
+  document.getElementById('summaryBar').innerHTML = `
+    <div class="item"><span class="label">Total contract value</span><span class="val">${money(totalSOV)}</span></div>
+    <div class="item"><span class="label">Lines</span><span class="val">${currentLines.length}</span></div>
+    <div class="item"><span class="label">Billed to date</span><span class="val">${money(totalBilled)}</span></div>
+    <div class="item"><span class="label">Remaining</span><span class="val">${money(totalSOV - totalBilled)}</span></div>`;
+
+  renderInvoiceList();
+}
+
+function openPA(paId) {
+  currentPA = payApps.find(p => p.id === paId);
+  if (currentPA) showPADetail();
+}
+
+// ───── Invoice state ────────────────────────────────────────
+let invoices = [];
+let currentInv = null;
+let invCounter = 5579;
+
+function createInvoice() {
+  invCounter++;
+  const invId = 'INV-' + invCounter;
+  const pa = currentPA;
+  const totalThis = pa.lineData.reduce((s, d) => s + d.thisPeriod, 0);
+  const totalRet = pa.lineData.reduce((s, d) => s + d.retainage, 0);
+
+  const inv = {
+    id: invId,
+    paId: pa.id,
+    month: pa.monthLabel,
+    status: 'draft',
+    amount: totalThis,
+    retainage: totalRet,
+    net: totalThis - totalRet,
+    lineData: currentLines.map((line, i) => ({
+      desc: line.desc,
+      billed: pa.lineData[i].thisPeriod,
+      retainage: pa.lineData[i].retainage,
+      net: pa.lineData[i].thisPeriod - pa.lineData[i].retainage,
+    })),
+    createdDate: 'Mar 31, 2026',
+  };
+
+  invoices.push(inv);
+  currentInv = inv;
+  toast('Invoice ' + invId + ' created from ' + pa.id);
+  showInvoiceDetail();
+}
+
+function showInvoiceDetail() {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('s3').classList.add('active');
+
+  const inv = currentInv;
+  document.getElementById('invTitle').textContent = inv.id;
+
+  const isDraft = inv.status === 'draft';
+  document.getElementById('invBadge').textContent = isDraft ? 'Draft' : 'Approved';
+  document.getElementById('invBadge').className = 'badge ' + (isDraft ? 'badge-draft' : 'badge-approved');
+  document.getElementById('btnApproveInv').style.display = isDraft ? '' : 'none';
+
+  const customer = selectedSrc ? selectedSrc.customer : 'Lakeshore Energy Co.';
+  document.getElementById('invMeta').innerHTML = `
+    <div><dt>Invoice</dt><dd>${inv.id}</dd></div>
+    <div><dt>Source pay app</dt><dd style="color:#0176d3;cursor:pointer" onclick="openPA('${inv.paId}');showPADetail()">${inv.paId}</dd></div>
+    <div><dt>Period</dt><dd>${inv.month}</dd></div>
+    <div><dt>Bill-to</dt><dd>${customer}</dd></div>
+    <div><dt>Amount</dt><dd>${money(inv.amount)}</dd></div>
+    <div><dt>Retainage held</dt><dd>${money(inv.retainage)}</dd></div>
+    <div><dt>Net payable</dt><dd style="color:#2e844a;font-size:1.1rem">${money(inv.net)}</dd></div>
+    <div><dt>Due date</dt><dd>Net 30</dd></div>
+    <div><dt>ERP export</dt><dd>${isDraft ? 'Pending approval' : 'Synced to NetSuite'}</dd></div>
+    <div><dt>Created</dt><dd>${inv.createdDate}</dd></div>`;
+
+  const trailSteps = [
+    { label: 'PA approved', done: true },
+    { label: 'Invoice created', done: true },
+    { label: 'Invoice approved', done: !isDraft },
+    { label: 'ERP synced', done: !isDraft },
+  ];
+  document.getElementById('invTrail').innerHTML = trailSteps.map((st, i) => {
+    const cls = st.done ? 't-step done' : (i > 0 && trailSteps[i-1].done && !st.done ? 't-step current' : 't-step');
+    return (i > 0 ? '<span class="t-arrow">→</span>' : '') + `<span class="${cls}">${st.label}</span>`;
+  }).join('');
+
+  let totalBilled = 0, totalRet = 0, totalNet = 0;
+  document.getElementById('invLinesBody').innerHTML = inv.lineData.map((ld, i) => {
+    totalBilled += ld.billed;
+    totalRet += ld.retainage;
+    totalNet += ld.net;
+    return `<tr class="slds-hint-parent">
+      <td>${String(i + 1).padStart(2, '0')}</td>
+      <td>${ld.desc}</td>
+      <td class="num">${money(ld.billed)}</td>
+      <td class="num">${money(ld.retainage)}</td>
+      <td class="num" style="font-weight:600">${money(ld.net)}</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('invLinesFoot').innerHTML = `
+    <tr style="background:#fafaf9;font-weight:700">
+      <td></td><td>Total</td>
+      <td class="num">${money(totalBilled)}</td>
+      <td class="num">${money(totalRet)}</td>
+      <td class="num">${money(totalNet)}</td>
+    </tr>`;
+}
+
+function approveInvoice() {
+  currentInv.status = 'approved';
+  toast(currentInv.id + ' approved — synced to ERP');
+  showInvoiceDetail();
+}
+
+function backFromInvoice() {
+  if (currentPA) {
+    showPADetail();
+  } else {
+    backToBS();
+  }
+}
+
+function renderInvoiceList() {
+  const el = document.getElementById('invListBody');
+  if (invoices.length === 0) {
+    el.innerHTML = '<div style="text-align:center;padding:1.25rem 1rem;color:#706e6b;font-size:.84rem">No invoices yet. Invoices are created from approved payment applications.</div>';
+    return;
+  }
+
+  let html = `<table class="slds-table slds-table_bordered" style="font-size:.82rem">
+    <thead><tr class="slds-line-height_reset">
+      <th class="slds-text-title_caps" scope="col">Invoice</th>
+      <th class="slds-text-title_caps" scope="col">Source PA</th>
+      <th class="slds-text-title_caps" scope="col">Period</th>
+      <th class="slds-text-title_caps num" scope="col" style="width:110px">Net amount</th>
+      <th class="slds-text-title_caps" scope="col" style="width:90px">Status</th>
+    </tr></thead><tbody>`;
+
+  invoices.forEach(inv => {
+    const badgeCls = inv.status === 'draft' ? 'badge-draft' : 'badge-approved';
+    html += `<tr class="slds-hint-parent pa-list-row" onclick="openInvoice('${inv.id}')">
+      <td><div class="slds-truncate" style="color:#0176d3;font-weight:600">${inv.id}</div></td>
+      <td>${inv.paId}</td>
+      <td>${inv.month}</td>
+      <td class="num" style="font-weight:600">${money(inv.net)}</td>
+      <td><span class="badge ${badgeCls}">${inv.status}</span></td>
+    </tr>`;
+  });
+
+  html += '</tbody></table>';
+
+  const totalInvoiced = invoices.filter(i => i.status === 'approved').reduce((s, i) => s + i.net, 0);
+  const totalPending = invoices.filter(i => i.status === 'draft').reduce((s, i) => s + i.net, 0);
+
+  html += `<div style="padding:.6rem 1rem;background:#fafaf9;border-top:1px solid #e5e5e5;font-size:.8rem;display:flex;gap:1.5rem;flex-wrap:wrap">
+    <div><span style="font-size:.68rem;font-weight:700;color:#706e6b;text-transform:uppercase">Approved & sent</span>
+    <span style="font-weight:700;display:block">${money(totalInvoiced)}</span></div>
+    <div><span style="font-size:.68rem;font-weight:700;color:#706e6b;text-transform:uppercase">Pending approval</span>
+    <span style="font-weight:700;display:block;color:#8c4b02">${money(totalPending)}</span></div>
+  </div>`;
+
+  el.innerHTML = html;
+}
+
+function openInvoice(invId) {
+  currentInv = invoices.find(i => i.id === invId);
+  if (currentInv) {
+    currentPA = payApps.find(p => p.id === currentInv.paId) || currentPA;
+    showInvoiceDetail();
+  }
+}
+
+function submitBS() {
+  toast('Billing schedule BS-10042 approved');
+  document.getElementById('bsBadge').textContent = 'Approved';
+  document.getElementById('bsBadge').className = 'badge badge-approved';
+  document.getElementById('btnSubmit').style.display = 'none';
+  document.getElementById('btnNewPA').style.display = '';
+  document.querySelectorAll('#linesBody .badge-draft').forEach(b => {
+    b.textContent = 'Approved';
+    b.className = 'badge badge-approved';
+  });
+  renderPAList();
+}
+
+// ───── Toast ────────────────────────────────────────────────
+function toast(msg) {
+  const el = document.getElementById('toast');
+  document.getElementById('toastMsg').textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2800);
+}
+</script>
+</body>
+</html>
