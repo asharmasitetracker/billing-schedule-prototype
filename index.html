@@ -75,7 +75,53 @@
 
     .scroll-anchor { scroll-margin-top: 108px; }
 
-    /* ── Billing schedule tab panels (one table per top tab) ── */
+    /* ── Billing schedule workspace: tabs sit directly above their content ── */
+    .bss-workspace {
+      background: #fff;
+      border: 1px solid #c9c9c9;
+      border-radius: .25rem;
+      overflow: hidden;
+      margin-bottom: 1rem;
+      box-shadow: 0 1px 2px rgba(0,0,0,.04);
+    }
+    .bss-local-nav {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: stretch;
+      gap: 0;
+      background: #fafaf9;
+      border-bottom: 1px solid #c9c9c9;
+      padding: 0;
+    }
+    .bss-local-tab {
+      font-family: inherit;
+      font-size: .78rem;
+      font-weight: 500;
+      padding: .7rem 1rem;
+      color: #3e3e3c;
+      border: none;
+      border-bottom: 3px solid transparent;
+      background: transparent;
+      cursor: pointer;
+      white-space: nowrap;
+      margin-bottom: -1px;
+      text-align: left;
+    }
+    .bss-local-tab:hover { color: #0176d3; background: rgba(1,118,211,.06); }
+    .bss-local-tab.active {
+      color: #0176d3;
+      font-weight: 700;
+      border-bottom-color: #0176d3;
+      background: #fff;
+    }
+    .bss-local-tab:focus { outline: none; box-shadow: inset 0 0 0 1px #0176d3; }
+    .bss-workspace-inner {
+      padding: 1rem;
+      background: #f3f3f3;
+    }
+    .bss-workspace-inner .bs-ribbon { margin-bottom: 1rem; }
+
+    /* ── Billing schedule tab panels (one table per tab) ── */
     .bss-panel { display: none; animation: fadeUp .2s ease; }
     .bss-panel.active { display: block; }
     .bss-panel-intro {
@@ -476,15 +522,11 @@
   <div class="avatar">AS</div>
 </header>
 
-<!-- ═══════ APP NAV ═══════ -->
+<!-- ═══════ APP NAV (list-level only — workflow tabs live on the schedule record) ═══════ -->
 <nav class="sf-nav" id="appNav">
-  <button type="button" class="active" data-tab="bs" id="navBs" onclick="navTabClick('bs')">Billing schedule</button>
-  <button type="button" data-tab="proj" id="navProj" disabled onclick="navTabClick('proj')">Monthly projection</button>
-  <button type="button" data-tab="pa" id="navPa" disabled onclick="navTabClick('pa')">Payment applications</button>
-  <button type="button" data-tab="inv" id="navInv" disabled onclick="navTabClick('inv')">Invoices</button>
-  <button type="button" data-tab="co" id="navCo" disabled onclick="navTabClick('co')">Change orders</button>
-  <button type="button" data-tab="po" disabled>Purchase orders</button>
-  <button type="button" data-tab="ag" disabled>Agreements</button>
+  <button type="button" class="active" data-app="home" id="navHome" onclick="navAppHome()">Billing schedules</button>
+  <button type="button" disabled>Purchase orders</button>
+  <button type="button" disabled>Agreements</button>
 </nav>
 
 <!-- ═══════ TOAST ═══════ -->
@@ -566,27 +608,37 @@
       </div>
     </div>
 
-    <!-- Header summary table — same KPIs as sections below; click to jump -->
-    <div class="bs-ribbon" id="bsRibbonWrap">
-      <div style="overflow-x:auto">
-        <table class="bs-ribbon-table slds-table slds-table_bordered" role="presentation">
-          <thead>
-            <tr>
-              <th scope="col">Billing schedule</th>
-              <th scope="col">Monthly projection</th>
-              <th scope="col">Payment applications</th>
-              <th scope="col">Invoices</th>
-              <th scope="col">Change orders</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr id="bsRibbonRow"></tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
+    <!-- Record workspace: each tab has its section directly below the tab row -->
+    <div class="bss-workspace" id="bssWorkspace">
+      <nav class="bss-local-nav" id="bssLocalNav" role="tablist" aria-label="Billing schedule sections">
+        <button type="button" role="tab" class="bss-local-tab active" data-bss-tab="bs" id="bssTabBs" aria-selected="true" onclick="navTabClick('bs')">Billing schedule</button>
+        <button type="button" role="tab" class="bss-local-tab" data-bss-tab="proj" id="bssTabProj" aria-selected="false" onclick="navTabClick('proj')">Monthly projection</button>
+        <button type="button" role="tab" class="bss-local-tab" data-bss-tab="pa" id="bssTabPa" aria-selected="false" onclick="navTabClick('pa')">Payment applications</button>
+        <button type="button" role="tab" class="bss-local-tab" data-bss-tab="inv" id="bssTabInv" aria-selected="false" onclick="navTabClick('inv')">Invoices</button>
+        <button type="button" role="tab" class="bss-local-tab" data-bss-tab="co" id="bssTabCo" aria-selected="false" onclick="navTabClick('co')">Change orders</button>
+      </nav>
+      <div class="bss-workspace-inner">
+        <!-- Summary KPIs — same data as each tab; click switches tab -->
+        <div class="bs-ribbon" id="bsRibbonWrap">
+          <div style="overflow-x:auto">
+            <table class="bs-ribbon-table slds-table slds-table_bordered" role="presentation">
+              <thead>
+                <tr>
+                  <th scope="col">Billing schedule</th>
+                  <th scope="col">Monthly projection</th>
+                  <th scope="col">Payment applications</th>
+                  <th scope="col">Invoices</th>
+                  <th scope="col">Change orders</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr id="bsRibbonRow"></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
 
-    <div id="bssPanelsRoot">
+        <div id="bssPanelsRoot">
     <!-- Panel: Billing schedule (details + lines table) -->
     <div class="bss-panel active" id="panel-bs" data-panel="bs">
       <p class="bss-panel-intro">Schedule header, metadata, and SOV line items for <strong>BS-10042</strong>.</p>
@@ -663,6 +715,7 @@
       <div class="card scroll-anchor" id="invListCard">
         <div class="card-head">
           <h2>Invoices</h2>
+          <button type="button" class="slds-button slds-button_neutral" style="font-size:.75rem;padding:.35rem .75rem" disabled title="Create from an approved payment application">New invoice</button>
         </div>
         <div id="invListBody">
           <div style="text-align:center;padding:1.25rem 1rem;color:#706e6b;font-size:.84rem">
@@ -689,7 +742,9 @@
         </div>
       </div>
     </div>
-    </div><!-- /bssPanelsRoot -->
+        </div><!-- /bssPanelsRoot -->
+      </div><!-- /bss-workspace-inner -->
+    </div><!-- /bss-workspace -->
   </section>
 
   <!-- ─── SCREEN 2 — PAYMENT APPLICATION DETAIL ──────── -->
@@ -961,16 +1016,23 @@ function money(n) { return n.toLocaleString('en-US', { style: 'currency', curren
 // ───── Billing schedule nav + header ribbon ─────────────────
 let projSummary = { generated: false, range: '', total: 0 };
 
-function enableBssNav() {
-  ['navProj', 'navPa', 'navInv', 'navCo'].forEach(id => {
-    const b = document.getElementById(id);
-    if (b) b.disabled = false;
+/** Workflow tabs live on the record (bssLocalNav); nothing to enable on app nav. */
+function enableBssNav() {}
+
+function navAppHome() {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('s0').classList.add('active');
+  document.querySelectorAll('#appNav button[data-app]').forEach(b => {
+    b.classList.toggle('active', b.getAttribute('data-app') === 'home');
   });
 }
 
+/** Highlights the tab row that sits directly above the schedule sections. */
 function setActiveNavTab(tab) {
-  document.querySelectorAll('#appNav button[data-tab]').forEach(btn => {
-    btn.classList.toggle('active', btn.getAttribute('data-tab') === tab);
+  document.querySelectorAll('.bss-local-tab').forEach(btn => {
+    const sel = btn.getAttribute('data-bss-tab') === tab;
+    btn.classList.toggle('active', sel);
+    btn.setAttribute('aria-selected', sel ? 'true' : 'false');
   });
 }
 
