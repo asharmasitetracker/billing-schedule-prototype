@@ -131,6 +131,15 @@
     .bs-quick-actions-row { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
     .bs-quick-actions-row .slds-button:disabled { opacity: .45; cursor: not-allowed; }
 
+    /* Always-visible workflow actions on BS record (all tabs) */
+    .bs-header-workflow {
+      display: flex; flex-wrap: wrap; gap: .5rem; align-items: center;
+      margin-left: .25rem; padding-left: .75rem; border-left: 1px solid #e5e5e5;
+    }
+    @media (max-width: 768px) {
+      .bs-header-workflow { margin-left: 0; padding-left: 0; border-left: none; margin-top: .5rem; width: 100%; }
+    }
+
     /* ── Toast ──────────────────────────────────── */
     .toast-wrap {
       position: fixed; top: 56px; left: 50%; transform: translateX(-50%);
@@ -603,10 +612,15 @@
             </div>
           </div>
         </div>
-        <div class="slds-no-flex slds-grid slds-align-top slds-grid_vertical-align-center" style="gap:.5rem">
+        <div class="slds-no-flex slds-grid slds-align-top slds-grid_vertical-align-center" style="gap:.5rem;flex-wrap:wrap">
           <span class="badge badge-draft" id="bsBadge">Draft</span>
-          <button class="slds-button slds-button_neutral">Edit</button>
-          <button class="slds-button slds-button_brand" id="btnSubmit" onclick="submitBS()">Submit for Approval</button>
+          <button type="button" class="slds-button slds-button_neutral">Edit</button>
+          <button type="button" class="slds-button slds-button_brand" id="btnSubmit" onclick="submitBS()">Submit for Approval</button>
+          <div class="bs-header-workflow" id="bsHeaderWorkflow" aria-label="Billing workflows">
+            <button type="button" class="slds-button slds-button_neutral" id="hdrBtnForecast" onclick="hdrActionForecast()">Generate forecast</button>
+            <button type="button" class="slds-button slds-button_neutral" id="hdrBtnPayApp" onclick="hdrActionPayApp()">Payment application</button>
+            <button type="button" class="slds-button slds-button_neutral" id="hdrBtnCo" onclick="hdrActionCo()">Change order</button>
+          </div>
         </div>
       </div>
     </div>
@@ -645,6 +659,15 @@
     <!-- Panel: Billing schedule (details + lines table) -->
     <div class="bss-panel active" id="panel-bs" data-panel="bs">
       <p class="bss-panel-intro">Schedule header, metadata, and SOV line items for <strong>BS-10042</strong>.</p>
+
+      <div class="card bs-quick-actions-card" id="bsQuickActionsCardTop" style="margin-bottom:1rem;border-color:#0176d3;border-width:1px;box-shadow:0 2px 8px rgba(1,118,211,.12)">
+        <div class="card-head" style="background:#f0f7ff;border-bottom-color:#cfe9fe">
+          <h2>Billing actions</h2>
+          <span style="font-size:.72rem;color:#014486">Forecast, pay apps, and change orders</span>
+        </div>
+        <div class="card-body" id="bsQuickActionsBodyTop"></div>
+      </div>
+
       <div class="card">
         <div class="card-head"><h2>Details</h2></div>
         <div class="card-body">
@@ -672,7 +695,7 @@
       </div>
 
       <div class="card bs-quick-actions-card" id="bsQuickActionsCard">
-        <div class="card-head"><h2>Next steps</h2><span style="font-size:.72rem;color:#706e6b">Jump to the right tab</span></div>
+        <div class="card-head"><h2>Next steps</h2><span style="font-size:.72rem;color:#706e6b">Same shortcuts as above</span></div>
         <div class="card-body" id="bsQuickActionsBody"></div>
       </div>
     </div>
@@ -1074,51 +1097,89 @@ function isBsApproved() {
   return b && b.textContent.trim().toLowerCase() === 'approved';
 }
 
-/** Billing schedule tab — CTAs that switch to Projection / PA / Change order tabs. */
-function renderBsQuickActions() {
-  const wrap = document.getElementById('bsQuickActionsBody');
-  if (!wrap) return;
-
-  const approved = isBsApproved();
-  const hasLines = currentLines.length > 0;
-
-  if (!approved) {
-    wrap.innerHTML = `
-      <p class="bss-panel-intro" style="margin:0 0 .75rem">After you <strong>submit and approve</strong> this billing schedule, you can run a monthly forecast, create payment applications, and open change orders.</p>
-      <div class="bs-quick-actions-row">
-        <button type="button" class="slds-button slds-button_neutral" disabled>Generate monthly forecast</button>
-        <button type="button" class="slds-button slds-button_neutral" disabled>Create payment application</button>
-        <button type="button" class="slds-button slds-button_neutral" disabled>Create change order</button>
-      </div>`;
+/** Header + Billing tab CTAs — always navigate; toasts explain prerequisites. */
+function hdrActionForecast() {
+  navTabClick('proj');
+  if (!isBsApproved()) {
+    toast('Approve this billing schedule first, then use Generate projection on the Monthly projection tab.');
     return;
   }
-
-  const forecastLabel = projSummary.generated ? 'View monthly forecast' : 'Generate monthly forecast';
-  const forecastDisabled = !hasLines;
-  const lineDisabled = !hasLines;
-
-  wrap.innerHTML = `
-    <p class="bss-panel-intro" style="margin:0 0 .75rem">Schedule is <strong>approved</strong>. Use the buttons below to open the right tab and continue.</p>
-    <div class="bs-quick-actions-row">
-      <button type="button" class="slds-button slds-button_brand"${forecastDisabled ? ' disabled title="Add billing schedule lines first"' : ` onclick="qaGoForecast()"`}>${forecastLabel}</button>
-      <button type="button" class="slds-button slds-button_brand"${lineDisabled ? ' disabled title="Add billing schedule lines first"' : ` onclick="qaGoPayApp()"`}>Create payment application</button>
-      <button type="button" class="slds-button slds-button_brand" style="background:#ba5700;border-color:#ba5700"${lineDisabled ? ' disabled title="Add billing schedule lines first"' : ` onclick="qaGoChangeOrder()"`}>Create change order</button>
-    </div>`;
+  if (currentLines.length === 0) {
+    toast('Add billing schedule lines, then generate the monthly forecast on the projection tab.');
+    return;
+  }
+  toast(projSummary.generated ? 'Review or regenerate the projection on this tab.' : 'Click Generate projection on this tab to build the forecast.');
 }
 
-function qaGoForecast() {
-  navTabClick('proj');
-  toast(projSummary.generated ? 'Monthly projection tab — adjust or regenerate if needed.' : 'Monthly projection tab — click Generate projection to build the forecast.');
-}
-
-function qaGoPayApp() {
+function hdrActionPayApp() {
   navTabClick('pa');
-  toast('Payment applications tab — choose New Payment Application to pick a period.');
+  if (!isBsApproved()) {
+    toast('Approve the billing schedule first, then use New Payment Application.');
+    return;
+  }
+  if (currentLines.length === 0) {
+    toast('Add billing schedule lines before creating a payment application.');
+    return;
+  }
+  toast('Pick a period with New Payment Application.');
 }
 
-function qaGoChangeOrder() {
+function hdrActionCo() {
   navTabClick('co');
-  toast('Change orders tab — use New Change Order to revise line items.');
+  if (!isBsApproved()) {
+    toast('Approve the billing schedule first, then use New Change Order.');
+    return;
+  }
+  if (currentLines.length === 0) {
+    toast('Add billing schedule lines before opening a change order.');
+    return;
+  }
+  toast('Use New Change Order to revise SOV lines.');
+}
+
+function renderBsHeaderActions() {
+  const ready = isBsApproved() && currentLines.length > 0;
+  const fc = document.getElementById('hdrBtnForecast');
+  const pa = document.getElementById('hdrBtnPayApp');
+  const co = document.getElementById('hdrBtnCo');
+  [fc, pa].forEach(el => {
+    if (!el) return;
+    el.className = 'slds-button ' + (ready ? 'slds-button_brand' : 'slds-button_neutral');
+  });
+  if (co) {
+    co.className = 'slds-button ' + (ready ? 'slds-button_brand' : 'slds-button_neutral');
+    co.style.cssText = ready
+      ? 'background:#ba5700;border-color:#ba5700;color:#fff'
+      : 'border-color:#ba5700;color:#ba5700;background:#fff';
+  }
+}
+
+/** Billing schedule tab + header — prominent CTAs (always visible, never disabled). */
+function renderBsQuickActions() {
+  const wrap = document.getElementById('bsQuickActionsBody');
+  const wrapTop = document.getElementById('bsQuickActionsBodyTop');
+  const approved = isBsApproved();
+  const hasLines = currentLines.length > 0;
+  const forecastLabel = projSummary.generated ? 'View monthly forecast' : 'Generate monthly forecast';
+
+  const intro = !approved
+    ? `<p class="bss-panel-intro" style="margin:0 0 .75rem">These actions open the right tab. <strong>Submit for approval</strong> when the SOV is ready, then run forecast, pay apps, or change orders.</p>`
+    : !hasLines
+      ? `<p class="bss-panel-intro" style="margin:0 0 .75rem">Schedule is approved — <strong>add SOV lines</strong> (or import) before forecasting or pay apps.</p>`
+      : `<p class="bss-panel-intro" style="margin:0 0 .75rem">Schedule is <strong>approved</strong> with lines — jump into forecasting, pay applications, or change orders.</p>`;
+
+  const row = `
+    <div class="bs-quick-actions-row" style="gap:.65rem">
+      <button type="button" class="slds-button slds-button_brand" style="font-size:.85rem;padding:.5rem 1rem" onclick="hdrActionForecast()">${forecastLabel}</button>
+      <button type="button" class="slds-button slds-button_brand" style="font-size:.85rem;padding:.5rem 1rem" onclick="hdrActionPayApp()">New payment application</button>
+      <button type="button" class="slds-button slds-button_brand" style="font-size:.85rem;padding:.5rem 1rem;background:#ba5700;border-color:#ba5700" onclick="hdrActionCo()">New change order</button>
+    </div>`;
+
+  const html = intro + row;
+  if (wrap) wrap.innerHTML = html;
+  if (wrapTop) wrapTop.innerHTML = html;
+
+  renderBsHeaderActions();
 }
 
 function navTabClick(tab) {
